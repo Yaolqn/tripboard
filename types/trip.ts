@@ -1,0 +1,71 @@
+export const ACTIVITY_TYPES = [
+  "transportation",
+  "hotel",
+  "food",
+  "attraction",
+  "shopping",
+  "activity",
+  "cafe",
+  "other",
+] as const;
+
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+export interface Activity {
+  id: string;
+  type: ActivityType;
+  title: string;
+  /** "HH:MM" in 24h format, or "" when unset */
+  time: string;
+  location?: string;
+  /** Positive number; absent when the activity has no recorded cost */
+  cost?: number;
+  notes?: string;
+  url?: string;
+  createdAt: number;
+}
+
+export interface Day {
+  id: string;
+  /** ISO date "yyyy-MM-dd" (local) */
+  date: string;
+  activities: Activity[];
+}
+
+export interface Trip {
+  id: string;
+  name: string;
+  destination: string;
+  /** ISO 4217 currency code, e.g. "JPY" */
+  currency: string;
+  /** ISO date "yyyy-MM-dd" (local) */
+  startDate: string;
+  endDate: string;
+  days: Day[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const CURRENCIES = [
+  { code: "USD", label: "USD $", symbol: "$", locale: "en-US" },
+  { code: "EUR", label: "EUR €", symbol: "€", locale: "de-DE" },
+  { code: "GBP", label: "GBP £", symbol: "£", locale: "en-GB" },
+  { code: "JPY", label: "JPY ¥", symbol: "¥", locale: "ja-JP" },
+  { code: "CNY", label: "CNY ¥", symbol: "¥", locale: "zh-CN" },
+  { code: "KRW", label: "KRW ₩", symbol: "₩", locale: "ko-KR" },
+  { code: "TWD", label: "TWD NT$", symbol: "NT$", locale: "zh-TW" },
+  { code: "SGD", label: "SGD $", symbol: "$", locale: "en-SG" },
+] as const;
+
+export const CURRENCY_CODES: readonly string[] = CURRENCIES.map((c) => c.code);
+
+export function currencyInfo(code: string) {
+  return (
+    CURRENCIES.find((c) => c.code === code) ?? {
+      code,
+      label: code,
+      symbol: code,
+      locale: "en-US",
+    }
+  );
+}

@@ -1,0 +1,376 @@
+/**
+ * UI strings for TripBoard. English is the source of truth for keys;
+ * TypeScript enforces that the Chinese dictionary covers every key.
+ */
+
+const en = {
+  // common
+  myTrips: "My Trips",
+  back: "Back",
+  cancel: "Cancel",
+  save: "Save",
+  delete: "Delete",
+  edit: "Edit",
+  open: "Open",
+  rename: "Rename",
+  duplicate: "Duplicate",
+  switchLanguage: "Switch language",
+
+  // landing
+  hero1: "Plan your trip.",
+  hero2: "Make it beautiful.",
+  heroSub: "Create a beautiful itinerary in minutes.",
+  createTrip: "Create a trip",
+  viewDemo: "View demo",
+  savedLocally: "Saved in this browser — no account needed.",
+  exampleTrips: "Example trips",
+  openExample: "Open example",
+  dataStays: "Data stays in your browser.",
+  addedToTrips: "{name} added to My Trips",
+  demoLabel: "A real itinerary, in real time",
+  featPlanTitle: "Plan",
+  featPlanDesc: "Build your itinerary with a simple timeline.",
+  featOrganizeTitle: "Organize",
+  featOrganizeDesc: "Keep places, activities and expenses together.",
+  featShareTitle: "Share",
+  featShareDesc: "Share your beautiful trip with anyone.",
+  tagline: "Plan your trip. Make it beautiful.",
+  product: "Product",
+  legal: "Legal",
+  about: "About",
+  privacy: "Privacy",
+  terms: "Terms",
+
+  // create trip
+  createYourTrip: "Create your trip",
+  daysAuto: "Days are generated automatically from your dates.",
+  tripName: "Trip name",
+  destination: "Destination",
+  startDate: "Start date",
+  endDate: "End date",
+  currency: "Currency",
+  phDestination: "Tokyo, Japan",
+  defaultTripName: "My Trip",
+  errStartRequired: "Choose a start date.",
+  errEndRequired: "Choose an end date.",
+  errEndBeforeStart: "The end date can't be before the start date.",
+  createTripBtn: "Create trip",
+  creating: "Creating…",
+
+  // my trips
+  savedInBrowser: "Saved in this browser.",
+  newTrip: "New trip",
+  noTripsYet: "No trips yet.",
+  noTripsSub: "Start planning your next adventure.",
+  editTripTitle: "Edit trip",
+  editTripDesc: "Update the name, destination or currency.",
+  deleteTripTitle: "Delete trip?",
+  deleteTripDesc:
+    "“{name}” and its entire itinerary will be permanently removed. This can't be undone.",
+  tripUpdated: "Trip updated",
+  duplicatedAs: "Duplicated as “{name}”",
+  tripDeleted: "Trip deleted",
+
+  // trip editor
+  share: "Share",
+  export: "Export",
+  itinerary: "Itinerary",
+  renameTrip: "Rename trip",
+  tripSettings: "Trip settings",
+  deleteTripMenu: "Delete trip",
+  addActivity: "Add activity",
+  dayWideOpen: "Your day is wide open.",
+  dayWideOpenSub: "Start adding places, meals and activities.",
+  addActivityTitle: "Add activity",
+  editActivityTitle: "Edit activity",
+  title: "Title",
+  time: "Time",
+  costCurrency: "Cost ({currency})",
+  type: "Type",
+  location: "Location",
+  link: "Link",
+  notes: "Notes",
+  phTitle: "e.g. Ramen at Ichiran",
+  phLocation: "e.g. Shibuya, Tokyo",
+  phNotes: "Anything to remember…",
+  errTitleRequired: "Give this activity a title.",
+  saveChanges: "Save changes",
+  addToItinerary: "Add to itinerary",
+  activityUpdated: "Activity updated",
+  addedToDay: "Added to {day}",
+  activityDuplicated: "Activity duplicated",
+  activityDeleted: "Activity deleted",
+  deleteActivityTitle: "Delete activity?",
+  deleteActivityDesc: "“{title}” will be removed from {day}.",
+  tripSummary: "Trip Summary",
+  total: "Total",
+  noCostsHint:
+    "No costs yet. Add a cost to any activity and it shows up here.",
+  countsLine: "{a} activities · {d} days",
+  noCosts: "No costs",
+  settingsTitle: "Trip settings",
+  settingsDesc: "Update the details shown on your itinerary.",
+  tripNotFound: "Trip not found",
+  tripNotFoundSub:
+    "It may have been deleted, or this link isn't quite right.",
+  shareYourTrip: "Share your trip",
+  shareDesc: "Anyone with the link can view this itinerary.",
+  copyLink: "Copy link",
+  copied: "Copied",
+  linkCopied: "Link copied",
+  copyFailed: "Couldn't copy the link",
+  preview: "Preview",
+  linkTooLong:
+    "This trip is large — the link contains all trip data and may be too long for some apps to open.",
+  exportTitle: "Export itinerary",
+  exportDesc: "Download a beautiful image of your trip.",
+  storyCard: "Story card",
+  storyCardMeta: "1080 × 1920 · Instagram, X, Discord",
+  fullItinerary: "Full itinerary",
+  fullItineraryMeta: "Long image · 1080px wide · every day",
+  imageDownloaded: "Image downloaded",
+  exportFailed: "Couldn't generate the image. Please try again.",
+  dragToReorder: "Drag to reorder",
+  activityActions: "Activity actions",
+  moreOptions: "More options",
+  backToMyTrips: "Back to My Trips",
+
+  // share preview
+  editTrip: "Edit trip",
+  shareInvalidTitle: "This itinerary isn't available",
+  shareInvalidSub:
+    "The link may be incomplete or the trip data could not be read.",
+  createYourOwnTrip: "Create your own trip",
+  nothingPlanned: "Nothing planned yet.",
+  createdWith: "Created with TripBoard",
+  shareTooLarge: "This trip is too large to share as a link.",
+  shareTooLargeHint: "Please export it as PNG instead.",
+
+  // loading / errors / 404
+  loadingYourTrip: "Loading your trip…",
+  notFoundTitle: "This trip doesn't exist.",
+  notFoundDesc:
+    "The itinerary may have been deleted or the link may be invalid.",
+  goHome: "Go home",
+  errorTitle: "Something went wrong",
+  errorDesc: "An unexpected error occurred. Please try again.",
+  reload: "Try again",
+
+  // export canvas
+  budget: "Budget",
+
+  // export canvas
+  yourTrip: "Your trip",
+  moreActivities: "+ {n} more activities",
+  emptyItinerary: "No activities yet — this itinerary is wide open.",
+
+  // about / privacy / terms
+  aboutTitle: "About TripBoard",
+  aboutBody:
+    "TripBoard is a minimal travel itinerary planner. Create a trip, arrange your days with a simple timeline, keep places, activities and expenses together, and share a beautiful read-only version with anyone.\n\nEverything is stored in your browser — no account, no sign-up, no database. Your trips stay on your device until you decide to share a link.",
+  privacyTitle: "Privacy Policy",
+  privacyBody:
+    "TripBoard stores your trip data in your browser's localStorage. Nothing is uploaded automatically.\n\nWe do not require an account, and we do not collect personal information at this stage.\n\nShare links encode your trip data directly into the URL. Anyone with the link can view that itinerary, so only share links you are comfortable with.\n\nIf TripBoard ever adds cloud sync or analytics, this policy will be updated first.",
+  termsTitle: "Terms of Service",
+  termsBody:
+    "TripBoard is provided as-is for personal trip planning. We do not guarantee availability, accuracy or fitness for any particular purpose.\n\nYou are responsible for the trips you create and the links you share.\n\nTripBoard does not collect payments or sell access at this stage.\n\nThese terms may change; changes will be posted on this page.",
+
+  // activity types
+  typeTransportation: "Transportation",
+  typeHotel: "Hotel",
+  typeFood: "Food",
+  typeAttraction: "Attraction",
+  typeShopping: "Shopping",
+  typeActivity: "Activity",
+  typeCafe: "Cafe",
+  typeOther: "Other",
+} as const;
+
+const zh: Record<TKey, string> = {
+  // common
+  myTrips: "我的旅行",
+  back: "返回",
+  cancel: "取消",
+  save: "保存",
+  delete: "删除",
+  edit: "编辑",
+  open: "打开",
+  rename: "重命名",
+  duplicate: "复制",
+  switchLanguage: "切换语言",
+
+  // landing
+  hero1: "规划你的旅行。",
+  hero2: "让它变漂亮。",
+  heroSub: "几分钟内创建一份漂亮的行程。",
+  createTrip: "创建旅行",
+  viewDemo: "查看演示",
+  savedLocally: "数据保存在本浏览器中 —— 无需账号。",
+  exampleTrips: "示例旅行",
+  openExample: "打开示例",
+  dataStays: "数据保存在你的浏览器中。",
+  addedToTrips: "已将 {name} 添加到我的旅行",
+  demoLabel: "真实的行程，真实的效果",
+  featPlanTitle: "规划",
+  featPlanDesc: "用简单的时间线构建你的行程。",
+  featOrganizeTitle: "整理",
+  featOrganizeDesc: "把地点、活动和费用放在一起。",
+  featShareTitle: "分享",
+  featShareDesc: "把漂亮的旅行分享给任何人。",
+  tagline: "规划你的旅行，让它变漂亮。",
+  product: "产品",
+  legal: "法律",
+  about: "关于",
+  privacy: "隐私政策",
+  terms: "服务条款",
+
+  // create trip
+  createYourTrip: "创建你的旅行",
+  daysAuto: "将根据你的日期自动生成天数。",
+  tripName: "行程名称",
+  destination: "目的地",
+  startDate: "开始日期",
+  endDate: "结束日期",
+  currency: "货币",
+  phDestination: "东京，日本",
+  defaultTripName: "我的旅行",
+  errStartRequired: "请选择开始日期。",
+  errEndRequired: "请选择结束日期。",
+  errEndBeforeStart: "结束日期不能早于开始日期。",
+  createTripBtn: "创建行程",
+  creating: "创建中…",
+
+  // my trips
+  savedInBrowser: "保存在本浏览器中。",
+  newTrip: "新建行程",
+  noTripsYet: "还没有旅行。",
+  noTripsSub: "开始规划你的下一段旅程吧。",
+  editTripTitle: "编辑行程",
+  editTripDesc: "更新名称、目的地或货币。",
+  deleteTripTitle: "删除行程？",
+  deleteTripDesc: "「{name}」及其全部行程将被永久删除，且无法撤销。",
+  tripUpdated: "行程已更新",
+  duplicatedAs: "已复制为「{name}」",
+  tripDeleted: "行程已删除",
+
+  // trip editor
+  share: "分享",
+  export: "导出",
+  itinerary: "行程",
+  renameTrip: "重命名行程",
+  tripSettings: "行程设置",
+  deleteTripMenu: "删除行程",
+  addActivity: "添加活动",
+  dayWideOpen: "这一天完全空着。",
+  dayWideOpenSub: "开始添加地点、美食和活动吧。",
+  addActivityTitle: "添加活动",
+  editActivityTitle: "编辑活动",
+  title: "标题",
+  time: "时间",
+  costCurrency: "费用（{currency}）",
+  type: "类型",
+  location: "地点",
+  link: "链接",
+  notes: "备注",
+  phTitle: "例如：一兰拉面",
+  phLocation: "例如：东京涩谷",
+  phNotes: "想记住的任何事情…",
+  errTitleRequired: "请给活动填写标题。",
+  saveChanges: "保存修改",
+  addToItinerary: "添加到行程",
+  activityUpdated: "活动已更新",
+  addedToDay: "已添加到{day}",
+  activityDuplicated: "已复制活动",
+  activityDeleted: "活动已删除",
+  deleteActivityTitle: "删除活动？",
+  deleteActivityDesc: "「{title}」将从{day}中移除。",
+  tripSummary: "行程概览",
+  total: "总计",
+  noCostsHint: "还没有费用。给任意活动添加费用后，会显示在这里。",
+  countsLine: "{a} 个活动 · {d} 天",
+  noCosts: "暂无费用",
+  settingsTitle: "行程设置",
+  settingsDesc: "更新行程上显示的信息。",
+  tripNotFound: "找不到该行程",
+  tripNotFoundSub: "它可能已被删除，或链接不正确。",
+  shareYourTrip: "分享你的行程",
+  shareDesc: "任何拥有链接的人都可以查看此行程。",
+  copyLink: "复制链接",
+  copied: "已复制",
+  linkCopied: "链接已复制",
+  copyFailed: "无法复制链接",
+  preview: "预览",
+  linkTooLong:
+    "行程较大 —— 链接包含全部行程数据，部分应用可能无法打开过长的链接。",
+  exportTitle: "导出行程",
+  exportDesc: "下载一张漂亮的行程图片。",
+  storyCard: "故事卡片",
+  storyCardMeta: "1080 × 1920 · Instagram、X、Discord",
+  fullItinerary: "完整行程",
+  fullItineraryMeta: "长图 · 宽 1080px · 包含每一天",
+  imageDownloaded: "图片已下载",
+  exportFailed: "生成图片失败，请重试。",
+  dragToReorder: "拖动以排序",
+  activityActions: "活动操作",
+  moreOptions: "更多选项",
+  backToMyTrips: "返回我的旅行",
+
+  // share preview
+  editTrip: "编辑行程",
+  shareInvalidTitle: "此行程不可用",
+  shareInvalidSub: "链接可能不完整，或行程数据无法读取。",
+  createYourOwnTrip: "创建你自己的行程",
+  nothingPlanned: "暂无安排。",
+  createdWith: "使用 TripBoard 创建",
+  shareTooLarge: "这个行程太大，无法通过链接分享。",
+  shareTooLargeHint: "请改用 PNG 导出。",
+
+  // loading / errors / 404
+  loadingYourTrip: "正在加载你的行程…",
+  notFoundTitle: "这个行程不存在。",
+  notFoundDesc: "行程可能已被删除，或链接无效。",
+  goHome: "返回首页",
+  errorTitle: "出了点问题",
+  errorDesc: "发生意外错误，请重试。",
+  reload: "重试",
+
+  // export canvas
+  budget: "预算",
+
+  // export canvas
+  yourTrip: "你的行程",
+  moreActivities: "还有 {n} 项",
+  emptyItinerary: "还没有活动 —— 这份行程还是空白。",
+
+  // about / privacy / terms
+  aboutTitle: "关于 TripBoard",
+  aboutBody:
+    "TripBoard 是一款极简的旅行行程规划工具。创建旅行，用简单的时间线安排每一天，把地点、活动和费用放在一起，并把漂亮的只读版本分享给任何人。\n\n所有数据都保存在你的浏览器中 —— 无需账号、无需注册、没有数据库。你的行程只留在你的设备上，直到你决定分享一个链接。",
+  privacyTitle: "隐私政策",
+  privacyBody:
+    "TripBoard 将你的行程数据保存在浏览器的 localStorage 中，不会自动上传任何内容。\n\n我们目前不要求账号，也不收集个人信息。\n\n分享链接会把行程数据直接编码进 URL 中。任何拥有链接的人都可以查看该行程，因此请只分享你愿意公开的链接。\n\n如果未来 TripBoard 增加云同步或统计功能，我们会先更新本政策。",
+  termsTitle: "服务条款",
+  termsBody:
+    "TripBoard 按现状提供，用于个人旅行规划。我们不保证可用性、准确性或适用于任何特定用途。\n\n你对自己创建的行程和分享的链接负责。\n\nTripBoard 目前不收取费用，也不出售访问权。\n\n本条款可能变更；变更会发布在本页面。",
+
+  // activity types
+  typeTransportation: "交通",
+  typeHotel: "酒店",
+  typeFood: "美食",
+  typeAttraction: "景点",
+  typeShopping: "购物",
+  typeActivity: "活动",
+  typeCafe: "咖啡",
+  typeOther: "其他",
+};
+
+export type TKey = keyof typeof en;
+
+type Dict = Record<TKey, string>;
+
+export const translations: { en: Dict; zh: Dict } = {
+  en,
+  zh,
+};
+
+export type Language = "en" | "zh";

@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.995 0 0);
+  --foreground: oklch(0.16 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0 0);
+  --primary: oklch(0.21 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.21 0 0);
+  --muted: oklch(0.967 0 0);
+  --muted-foreground: oklch(0.53 0 0);
+  --accent: oklch(0.955 0 0);
+  --accent-foreground: oklch(0.21 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.918 0 0);
+  --input: oklch(0.918 0 0);
+  --ring: oklch(0.7 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas,
+    monospace;
+}
+
+/* --- calm, functional motion ------------------------------------------- */
+/* Registered as theme animations so variants like `sm:animate-tb-scale-in`
+   work (plain CSS classes would ignore Tailwind variants). */
+@theme {
+  --animate-tb-fade-in: tb-fade-in 0.18s ease-out both;
+  --animate-tb-fade-out: tb-fade-out 0.15s ease-in both;
+  --animate-tb-rise: tb-rise 0.32s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+  --animate-tb-rise-sm: tb-rise-sm 0.22s ease-out both;
+  --animate-tb-scale-in: tb-scale-in 0.16s ease-out both;
+  --animate-tb-scale-out: tb-scale-out 0.14s ease-in both;
+  --animate-tb-slide-up: tb-slide-up 0.28s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+  --animate-tb-slide-down: tb-slide-down 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-tb-day-switch: tb-day-switch 0.22s ease-out both;
+
+  @keyframes tb-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes tb-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes tb-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes tb-rise-sm {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes tb-scale-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes tb-scale-out {
+    from { opacity: 1; transform: scale(0.97); }
+    to { opacity: 0; }
+  }
+  @keyframes tb-slide-up {
+    from { opacity: 0.4; transform: translateY(100%); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes tb-slide-down {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0.4; transform: translateY(100%); }
+  }
+  @keyframes tb-day-switch {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: oklch(0.9 0 0);
+  }
+}
+
+/* thin, invisible scrollbars for the horizontal day chips */
+.tb-scroll-thin {
+  scrollbar-width: none;
+}
+.tb-scroll-thin::-webkit-scrollbar {
+  display: none;
+}
+
+/* native date/time inputs: keep them quiet and consistent */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
+}
+
+/* ── Print / PDF (reserved) ───────────────────────────────────────
+   window.print() yields a clean itinerary: interactive chrome is hidden
+   (.no-print), sticky positioning is neutralized, backgrounds are flat. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  header,
+  aside,
+  footer {
+    position: static !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  main {
+    max-width: 100% !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
