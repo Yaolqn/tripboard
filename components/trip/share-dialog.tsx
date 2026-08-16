@@ -61,8 +61,8 @@ export function ShareDialog({
 
         {shareable ? (
           <>
-            <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
-              <span className="line-clamp-3 break-all">{url}</span>
+            <div className="max-h-28 overflow-y-auto rounded-lg border bg-muted/40 px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
+              <span className="break-all">{url}</span>
             </div>
 
             <div className="flex gap-2">

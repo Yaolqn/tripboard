@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         sheetOnMobile
-          ? "fixed inset-x-0 bottom-0 top-auto z-50 max-h-[92dvh] w-full overflow-hidden rounded-t-2xl border border-b-0 bg-background shadow-xl outline-none data-[state=open]:animate-tb-slide-up data-[state=closed]:animate-tb-slide-down sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border-b sm:data-[state=open]:animate-tb-scale-in sm:data-[state=closed]:animate-tb-scale-out"
+          ? "fixed inset-x-0 bottom-0 top-auto z-50 max-h-[92dvh] w-full overflow-y-auto overflow-x-hidden rounded-t-2xl border border-b-0 bg-background p-6 shadow-xl outline-none data-[state=open]:animate-tb-slide-up data-[state=closed]:animate-tb-slide-down sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border-b sm:data-[state=open]:animate-tb-scale-in sm:data-[state=closed]:animate-tb-scale-out"
           : "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border bg-background p-6 shadow-xl outline-none data-[state=open]:animate-tb-scale-in data-[state=closed]:animate-tb-scale-out",
         className
       )}
