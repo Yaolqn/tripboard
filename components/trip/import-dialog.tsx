@@ -46,6 +46,9 @@ export function ImportDialog({
         toast.success(t("tripsSynced"));
         onImported();
         onOpenChange(false);
+      } else if (trips.length > 0) {
+        // storage had trips but nothing made it to the cloud — surface it
+        toast.error(t("saveFailed"));
       } else {
         toast(t("nothingToImport"));
         onOpenChange(false);

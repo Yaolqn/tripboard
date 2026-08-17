@@ -190,7 +190,16 @@ export async function cloudSaveTrip(
 ): Promise<void> {
   const set = tripToWriteSet(trip);
 
-  const { error: tripErr } = await supabase.from("trips").upsert(set.trip);
+  // user_id is required on insert (import/duplicate create new rows);
+  // harmless on update of an existing row.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in");
+
+  const { error: tripErr } = await supabase
+    .from("trips")
+    .upsert({ ...set.trip, user_id: user.id });
   if (tripErr) throw tripErr;
 
   // existing days & activities for this trip
@@ -265,8 +274,9 @@ export async function cloudImportTrips(
         days: trip.days.map((d) => ({ ...d, id: newId() })),
       });
       imported += 1;
-    } catch {
-      // skip individual failures so one bad trip doesn't block the rest
+    } catch (err) {
+      // One bad trip shouldn't block the rest, but don't swallow silently.
+      console.error("[tripboard] import failed for", trip.name, err);
     }
   }
   return imported;

@@ -23,10 +23,11 @@ import {
 async function currentUser() {
   const supabase = getBrowserSupabase();
   if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  // getSession() reads the local session without a network round-trip —
+  // used only to decide cloud vs local routing. Real auth failures surface
+  // on the database calls themselves.
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user ?? null;
 }
 
 export type CreateTripInput = CloudCreateInput;

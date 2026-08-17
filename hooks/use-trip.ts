@@ -67,7 +67,8 @@ export function useTrip(id: string | null | undefined): UseTripResult {
     try {
       await data.saveTrip(tripToSave);
       if (mounted.current) setOffline(false);
-    } catch {
+    } catch (err) {
+      console.error("[tripboard] save failed", err);
       if (mounted.current) setOffline(true);
     } finally {
       if (mounted.current) setSaving(false);
