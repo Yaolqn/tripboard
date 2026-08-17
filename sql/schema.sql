@@ -1,6 +1,7 @@
 -- =============================================================
 -- TripBoard V0.3 — Supabase schema + Row Level Security
 -- Run this whole file in the Supabase SQL Editor (project → SQL).
+-- The script is idempotent: it can be re-run safely.
 -- =============================================================
 
 -- ---------- profiles ----------
@@ -111,6 +112,7 @@ create table if not exists public.trip_invites (
 
 -- =============================================================
 -- ROW LEVEL SECURITY
+-- (drop-if-exists guards make the whole file re-runnable)
 -- =============================================================
 alter table public.profiles enable row level security;
 alter table public.trips enable row level security;
@@ -146,20 +148,25 @@ as $$
 $$;
 
 -- ---------- profiles ----------
+drop policy if exists "profiles: read own or member-of" on public.profiles;
 create policy "profiles: read own or member-of" on public.profiles
   for select using (id = auth.uid());
+drop policy if exists "profiles: update own" on public.profiles;
 create policy "profiles: update own" on public.profiles
   for update using (id = auth.uid());
 
 -- ---------- trips ----------
+drop policy if exists "trips: read own / member / public" on public.trips;
 create policy "trips: read own / member / public" on public.trips
   for select using (
     user_id = auth.uid()
     or public.is_trip_member(id)
     or visibility = 'public'
   );
+drop policy if exists "trips: insert own" on public.trips;
 create policy "trips: insert own" on public.trips
   for insert with check (user_id = auth.uid());
+drop policy if exists "trips: update owner/editor" on public.trips;
 create policy "trips: update owner/editor" on public.trips
   for update using (
     public.is_trip_owner(id)
@@ -168,10 +175,12 @@ create policy "trips: update owner/editor" on public.trips
       where m.trip_id = id and m.user_id = auth.uid() and m.role = 'editor'
     ))
   );
+drop policy if exists "trips: delete owner" on public.trips;
 create policy "trips: delete owner" on public.trips
   for delete using (public.is_trip_owner(id));
 
 -- ---------- trip_days ----------
+drop policy if exists "trip_days: read with trip" on public.trip_days;
 create policy "trip_days: read with trip" on public.trip_days
   for select using (
     exists (
@@ -180,6 +189,7 @@ create policy "trip_days: read with trip" on public.trip_days
         and (t.user_id = auth.uid() or t.visibility = 'public' or public.is_trip_member(t.id))
     )
   );
+drop policy if exists "trip_days: write with trip" on public.trip_days;
 create policy "trip_days: write with trip" on public.trip_days
   for all using (
     exists (
@@ -201,6 +211,7 @@ create policy "trip_days: write with trip" on public.trip_days
   ));
 
 -- ---------- activities ----------
+drop policy if exists "activities: read with day" on public.activities;
 create policy "activities: read with day" on public.activities
   for select using (
     exists (
@@ -210,6 +221,7 @@ create policy "activities: read with day" on public.activities
         and (t.user_id = auth.uid() or t.visibility = 'public' or public.is_trip_member(t.id))
     )
   );
+drop policy if exists "activities: write with day" on public.activities;
 create policy "activities: write with day" on public.activities
   for all using (
     exists (
@@ -233,22 +245,67 @@ create policy "activities: write with day" on public.activities
   ));
 
 -- ---------- trip_members ----------
+drop policy if exists "trip_members: read own/owner" on public.trip_members;
 create policy "trip_members: read own/owner" on public.trip_members
   for select using (
     user_id = auth.uid()
     or exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id))
   );
+drop policy if exists "trip_members: owner manages" on public.trip_members;
 create policy "trip_members: owner manages" on public.trip_members
   for all using (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)))
   with check (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)));
 
 -- ---------- trip_invites ----------
+drop policy if exists "trip_invites: read owner / by token" on public.trip_invites;
 create policy "trip_invites: read owner / by token" on public.trip_invites
   for select using (
     exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id))
-    or token = current_setting('request.jwt.claims', true)::jsonb ->> 'invite_token'
   );
+drop policy if exists "trip_invites: owner creates" on public.trip_invites;
 create policy "trip_invites: owner creates" on public.trip_invites
   for insert with check (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)));
+drop policy if exists "trip_invites: owner deletes" on public.trip_invites;
 create policy "trip_invites: owner deletes" on public.trip_invites
   for delete using (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)));
+
+-- =============================================================
+-- INVITE RPCs (security definer — the shared token is the credential)
+-- =============================================================
+create or replace function public.get_invite(invite_token text)
+returns table (trip_id uuid, role text, trip_title text)
+language sql stable security definer set search_path = public
+as $$
+  select i.trip_id, i.role, t.title
+  from public.trip_invites i
+  join public.trips t on t.id = i.trip_id
+  where i.token = invite_token
+    and (i.expires_at is null or i.expires_at > now());
+$$;
+
+create or replace function public.accept_invite(invite_token text)
+returns boolean
+language plpgsql security definer set search_path = public
+as $$
+declare
+  inv record;
+begin
+  select trip_id, role into inv
+  from public.trip_invites
+  where token = invite_token
+    and (expires_at is null or expires_at > now());
+  if inv.trip_id is null then
+    return false;
+  end if;
+  insert into public.trip_members (trip_id, user_id, role)
+  values (inv.trip_id, auth.uid(), inv.role)
+  on conflict (trip_id, user_id) do update set role = excluded.role;
+  delete from public.trip_invites where token = invite_token;
+  return true;
+end;
+$$;
+
+revoke all on function public.get_invite(text) from public;
+revoke all on function public.accept_invite(text) from public;
+grant execute on function public.get_invite(text) to authenticated;
+grant execute on function public.accept_invite(text) to authenticated;

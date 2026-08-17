@@ -305,43 +305,27 @@ export async function cloudGetInvite(
   supabase: SupabaseClient,
   token: string
 ): Promise<InviteInfo | null> {
-  const { data, error } = await supabase
-    .from("trip_invites")
-    .select("trip_id, role, trips(title)")
-    .eq("token", token)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_invite", {
+    invite_token: token,
+  });
   if (error || !data) return null;
-  const trips = data.trips as unknown as { title?: string } | null;
+  const row = data as unknown as { trip_id: string; role: string; trip_title: string };
   return {
-    tripId: data.trip_id as string,
-    tripTitle: trips?.title ?? "Trip",
-    role: data.role as InviteInfo["role"],
+    tripId: row.trip_id,
+    tripTitle: row.trip_title ?? "Trip",
+    role: row.role as InviteInfo["role"],
     valid: true,
   };
 }
 
-/** Accept an invite: adds the current user as a member. */
+/** Accept an invite: adds the current user as a member (via RPC). */
 export async function cloudAcceptInvite(
   supabase: SupabaseClient,
   token: string
 ): Promise<boolean> {
-  const info = await cloudGetInvite(supabase, token);
-  if (!info) return false;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return false;
-  const { error } = await supabase
-    .from("trip_members")
-    .upsert(
-      { trip_id: info.tripId, user_id: user.id, role: info.role },
-      { onConflict: "trip_id,user_id" }
-    );
+  const { data, error } = await supabase.rpc("accept_invite", {
+    invite_token: token,
+  });
   if (error) return false;
-  try {
-    await supabase.from("trip_invites").delete().eq("token", token);
-  } catch {
-    // invite cleanup is best-effort
-  }
-  return true;
+  return data === true;
 }
