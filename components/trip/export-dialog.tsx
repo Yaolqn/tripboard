@@ -300,7 +300,7 @@ export function ExportDialog({
     setBusy(variant);
     try {
       await exportNodeToPng(node, exportFileName(trip.name));
-      track("trip_exported", { variant });
+      track("png_exported", { variant });
       toast.success(t("imageDownloaded"));
     } catch {
       toast.error(t("exportFailed"));

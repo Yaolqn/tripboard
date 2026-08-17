@@ -40,6 +40,22 @@ export function SiteFooter() {
                     {t("myTrips")}
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/explore"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {t("exploreTrips")}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/templates"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {t("templates")}
+                  </Link>
+                </li>
               </ul>
             </div>
 

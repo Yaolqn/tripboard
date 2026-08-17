@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import type { User } from "@supabase/supabase-js";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { siteUrl } from "@/lib/site";
 import { LanguageProvider } from "@/lib/i18n";
+import { getServerUser } from "@/lib/supabase/server";
+import { SessionProvider } from "@/components/auth/session-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const TITLE = "TripBoard — Plan your trip. Make it beautiful.";
@@ -45,13 +48,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user: User | null = await getServerUser();
   return (
     <html lang="en">
       <body className="min-h-dvh bg-background text-foreground antialiased">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <SessionProvider initialUser={user}>{children}</SessionProvider>
+        </LanguageProvider>
         <Toaster />
       </body>
     </html>

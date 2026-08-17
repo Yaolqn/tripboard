@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { CURRENCIES } from "@/types/trip";
-import { createTrip } from "@/lib/storage";
+import { createTrip } from "@/lib/data";
 import { useI18n } from "@/lib/i18n";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,7 @@ export default function NewTripPage() {
     if (value && (!endDate || endDate < value)) setEndDate(value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: FormErrors = {};
     if (!startDate) nextErrors.startDate = t("errStartRequired");
@@ -65,9 +66,17 @@ export default function NewTripPage() {
 
     setSubmitting(true);
     try {
-      const trip = createTrip({ name, destination, currency, startDate, endDate });
+      const trip = await createTrip({
+        name,
+        destination,
+        currency,
+        startDate,
+        endDate,
+      });
       track("trip_created", { source: "new_page" });
       router.push(`/trip/${trip.id}`);
+    } catch {
+      toast.error(t("saveFailed"));
     } finally {
       setSubmitting(false);
     }

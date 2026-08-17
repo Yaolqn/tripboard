@@ -1,6 +1,9 @@
 import {
   ACTIVITY_TYPES,
   CURRENCY_CODES,
+  isTheme,
+  isTripStatus,
+  isVisibility,
   type Activity,
   type ActivityType,
   type Day,
@@ -235,5 +238,12 @@ export function sanitizeTrip(raw: unknown): Trip | null {
     days: days.length > 0 ? days : buildDays(startDate, endDate),
     createdAt: typeof r.createdAt === "number" ? r.createdAt : Date.now(),
     updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : Date.now(),
+    slug: typeof r.slug === "string" && r.slug ? r.slug : undefined,
+    visibility: isVisibility(r.visibility) ? r.visibility : "private",
+    status: isTripStatus(r.status) ? r.status : "draft",
+    theme: isTheme(r.theme) ? r.theme : "minimal",
+    cover: typeof r.cover === "string" && r.cover ? r.cover : undefined,
+    showBudget: typeof r.showBudget === "boolean" ? r.showBudget : true,
+    showNotes: typeof r.showNotes === "boolean" ? r.showNotes : true,
   };
 }

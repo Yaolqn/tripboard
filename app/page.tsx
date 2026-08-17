@@ -19,6 +19,7 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { LanguageToggle } from "@/components/ui/language-toggle";
+import { HeaderAuth, CreateTripButton } from "@/components/auth/header-auth";
 import { SiteFooter } from "@/components/site-footer";
 import { ReadOnlyDay } from "@/components/trip/readonly-day";
 import { Wordmark } from "@/components/trip/wordmark";
@@ -46,8 +47,8 @@ export default function LandingPage() {
   // server and client renders.
   const demo = useMemo(() => (mounted ? buildDemoTrip("tokyo") : null), [mounted]);
 
-  const openDemo = (key: string) => {
-    const trip = createDemoTrip(key);
+  const openDemo = async (key: string) => {
+    const trip = await createDemoTrip(key);
     if (!trip) {
       toast.error("Couldn't create the example trip");
       return;
@@ -69,12 +70,8 @@ export default function LandingPage() {
         <Wordmark />
         <div className="flex items-center gap-1">
           <LanguageToggle />
-          <Link
-            href="/my-trips"
-            className="rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            {t("myTrips")}
-          </Link>
+          <HeaderAuth />
+          <CreateTripButton />
         </div>
       </header>
 

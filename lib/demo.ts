@@ -1,5 +1,7 @@
 import type { ActivityType, Trip } from "@/types/trip";
 import { saveTrip } from "@/lib/storage";
+import { createTrip as dataCreateTrip } from "@/lib/data";
+import { getBrowserSupabase } from "@/lib/supabase/client";
 import { addDays, todayISO } from "@/lib/format";
 import { newId } from "@/lib/trip-utils";
 
@@ -167,13 +169,43 @@ export function buildDemoTrip(key: string): Trip | null {
   return trip;
 }
 
-/** Create a real sample trip and save it to localStorage. */
-export function createDemoTrip(key: string): Trip | null {
-  const trip = buildDemoTrip(key);
-  if (!trip) return null;
-  // Ensure a fresh id so repeated clicks create separate trips.
-  trip.id = newId();
-  trip.days = trip.days.map((d) => ({ ...d, id: newId() }));
-  saveTrip(trip);
-  return trip;
+/**
+ * Create a real sample trip. Signed-in users get it in the cloud; guests get
+ * it in localStorage. Returns the created trip (with a fresh id).
+ */
+export async function createDemoTrip(key: string): Promise<Trip | null> {
+  const demo = buildDemoTrip(key);
+  if (!demo) return null;
+
+  const supabase = getBrowserSupabase();
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      return dataCreateTrip({
+        name: demo.name,
+        destination: demo.destination,
+        currency: demo.currency,
+        startDate: demo.startDate,
+        endDate: demo.endDate,
+        fromTemplate: {
+          name: demo.name,
+          destination: demo.destination,
+          currency: demo.currency,
+          startDate: demo.startDate,
+          endDate: demo.endDate,
+          days: demo.days.map((d) => ({ date: d.date, activities: d.activities })),
+          theme: "minimal",
+          cover: key,
+        },
+      });
+    }
+  }
+
+  // guest: save locally with fresh ids
+  demo.id = newId();
+  demo.days = demo.days.map((d) => ({ ...d, id: newId() }));
+  saveTrip(demo);
+  return demo;
 }

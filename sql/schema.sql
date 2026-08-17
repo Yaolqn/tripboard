@@ -1,0 +1,254 @@
+-- =============================================================
+-- TripBoard V0.3 — Supabase schema + Row Level Security
+-- Run this whole file in the Supabase SQL Editor (project → SQL).
+-- =============================================================
+
+-- ---------- profiles ----------
+create table if not exists public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  email text,
+  display_name text,
+  avatar_url text,
+  created_at timestamptz not null default now()
+);
+
+-- auto-create a profile row on signup
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, display_name, avatar_url)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', split_part(coalesce(new.email, ''), '@', 1)),
+    new.raw_user_meta_data ->> 'avatar_url'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- ---------- trips ----------
+create table if not exists public.trips (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  title text not null default 'My Trip',
+  destination text not null default '',
+  start_date date,
+  end_date date,
+  currency text not null default 'JPY',
+  cover text,
+  theme text not null default 'minimal',
+  visibility text not null default 'private' check (visibility in ('private', 'unlisted', 'public')),
+  status text not null default 'draft' check (status in ('draft', 'planning', 'ready', 'completed')),
+  slug text unique,
+  show_budget boolean not null default true,
+  show_notes boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists trips_user_idx on public.trips (user_id);
+create index if not exists trips_visibility_idx on public.trips (visibility);
+
+-- ---------- trip_days ----------
+create table if not exists public.trip_days (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references public.trips (id) on delete cascade,
+  day_number int not null,
+  date date,
+  title text,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists trip_days_trip_idx on public.trip_days (trip_id);
+
+-- ---------- activities ----------
+create table if not exists public.activities (
+  id uuid primary key default gen_random_uuid(),
+  day_id uuid not null references public.trip_days (id) on delete cascade,
+  title text not null default '',
+  time text not null default '',
+  type text not null default 'other',
+  location text,
+  cost numeric,
+  notes text,
+  url text,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists activities_day_idx on public.activities (day_id);
+
+-- ---------- trip_members ----------
+create table if not exists public.trip_members (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references public.trips (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  role text not null default 'viewer' check (role in ('owner', 'editor', 'viewer')),
+  created_at timestamptz not null default now(),
+  unique (trip_id, user_id)
+);
+create index if not exists trip_members_user_idx on public.trip_members (user_id);
+
+-- ---------- trip_invites (invite links) ----------
+create table if not exists public.trip_invites (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references public.trips (id) on delete cascade,
+  token text not null unique,
+  role text not null default 'viewer' check (role in ('editor', 'viewer')),
+  created_by uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz
+);
+
+-- =============================================================
+-- ROW LEVEL SECURITY
+-- =============================================================
+alter table public.profiles enable row level security;
+alter table public.trips enable row level security;
+alter table public.trip_days enable row level security;
+alter table public.activities enable row level security;
+alter table public.trip_members enable row level security;
+alter table public.trip_invites enable row level security;
+
+-- helper: is the current user a member (any role) of a trip?
+create or replace function public.is_trip_member(trip_id uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.trip_members m
+    where m.trip_id = $1 and m.user_id = auth.uid()
+  );
+$$;
+
+-- helper: is the current user the owner (or owner-member) of a trip?
+create or replace function public.is_trip_owner(trip_id uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.trips t
+    where t.id = $1 and t.user_id = auth.uid()
+  )
+  or exists (
+    select 1 from public.trip_members m
+    where m.trip_id = $1 and m.user_id = auth.uid() and m.role = 'owner'
+  );
+$$;
+
+-- ---------- profiles ----------
+create policy "profiles: read own or member-of" on public.profiles
+  for select using (id = auth.uid());
+create policy "profiles: update own" on public.profiles
+  for update using (id = auth.uid());
+
+-- ---------- trips ----------
+create policy "trips: read own / member / public" on public.trips
+  for select using (
+    user_id = auth.uid()
+    or public.is_trip_member(id)
+    or visibility = 'public'
+  );
+create policy "trips: insert own" on public.trips
+  for insert with check (user_id = auth.uid());
+create policy "trips: update owner/editor" on public.trips
+  for update using (
+    public.is_trip_owner(id)
+    or (public.is_trip_member(id) and exists (
+      select 1 from public.trip_members m
+      where m.trip_id = id and m.user_id = auth.uid() and m.role = 'editor'
+    ))
+  );
+create policy "trips: delete owner" on public.trips
+  for delete using (public.is_trip_owner(id));
+
+-- ---------- trip_days ----------
+create policy "trip_days: read with trip" on public.trip_days
+  for select using (
+    exists (
+      select 1 from public.trips t
+      where t.id = trip_id
+        and (t.user_id = auth.uid() or t.visibility = 'public' or public.is_trip_member(t.id))
+    )
+  );
+create policy "trip_days: write with trip" on public.trip_days
+  for all using (
+    exists (
+      select 1 from public.trips t
+      where t.id = trip_id
+        and (t.user_id = auth.uid() or (public.is_trip_member(t.id) and exists (
+          select 1 from public.trip_members m
+          where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
+        )))
+    )
+  )
+  with check (exists (
+    select 1 from public.trips t
+    where t.id = trip_id
+      and (t.user_id = auth.uid() or (public.is_trip_member(t.id) and exists (
+        select 1 from public.trip_members m
+        where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
+      )))
+  ));
+
+-- ---------- activities ----------
+create policy "activities: read with day" on public.activities
+  for select using (
+    exists (
+      select 1 from public.trip_days d
+      join public.trips t on t.id = d.trip_id
+      where d.id = day_id
+        and (t.user_id = auth.uid() or t.visibility = 'public' or public.is_trip_member(t.id))
+    )
+  );
+create policy "activities: write with day" on public.activities
+  for all using (
+    exists (
+      select 1 from public.trip_days d
+      join public.trips t on t.id = d.trip_id
+      where d.id = day_id
+        and (t.user_id = auth.uid() or (public.is_trip_member(t.id) and exists (
+          select 1 from public.trip_members m
+          where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
+        )))
+    )
+  )
+  with check (exists (
+    select 1 from public.trip_days d
+    join public.trips t on t.id = d.trip_id
+    where d.id = day_id
+      and (t.user_id = auth.uid() or (public.is_trip_member(t.id) and exists (
+        select 1 from public.trip_members m
+        where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
+      )))
+  ));
+
+-- ---------- trip_members ----------
+create policy "trip_members: read own/owner" on public.trip_members
+  for select using (
+    user_id = auth.uid()
+    or exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id))
+  );
+create policy "trip_members: owner manages" on public.trip_members
+  for all using (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)))
+  with check (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)));
+
+-- ---------- trip_invites ----------
+create policy "trip_invites: read owner / by token" on public.trip_invites
+  for select using (
+    exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id))
+    or token = current_setting('request.jwt.claims', true)::jsonb ->> 'invite_token'
+  );
+create policy "trip_invites: owner creates" on public.trip_invites
+  for insert with check (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)));
+create policy "trip_invites: owner deletes" on public.trip_invites
+  for delete using (exists (select 1 from public.trips t where t.id = trip_id and public.is_trip_owner(t.id)));

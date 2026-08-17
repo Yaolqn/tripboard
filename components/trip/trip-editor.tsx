@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarX2, Plus } from "lucide-react";
+import { CalendarX2, CloudOff, Plus } from "lucide-react";
 import type { Activity } from "@/types/trip";
 import { useTrip } from "@/hooks/use-trip";
 import { createActivity, insertActivity } from "@/lib/trip-utils";
@@ -15,7 +15,7 @@ import {
   parseISODate,
 } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { removeTrip } from "@/lib/storage";
+import { deleteTrip } from "@/lib/data";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -34,18 +34,9 @@ import { ShareDialog } from "@/components/trip/share-dialog";
 import { ExportDialog } from "@/components/trip/export-dialog";
 import { ConfirmDialog } from "@/components/trip/confirm-dialog";
 
-export default function TripPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
-  return <TripEditor id={id} />;
-}
-
-function TripEditor({ id }: { id: string }) {
+export function TripEditor({ id }: { id: string }) {
   const router = useRouter();
-  const { trip, update } = useTrip(id);
+  const { trip, update, offline, mode } = useTrip(id);
   const { t, dayLabel } = useI18n();
 
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
@@ -76,7 +67,7 @@ function TripEditor({ id }: { id: string }) {
   const dayNumber = activeDayIndex + 1;
   const dayHeading = `${dayLabel(dayNumber)} · ${formatISODateShort(activeDay.date)}`;
 
-  /* ── activity mutations ─────────────────────────────────────── */
+  /* ── activity mutations (optimistic, cloud debounced in useTrip) ── */
 
   const handleSaveActivity = (draft: ActivityDraft) => {
     const editing = editor.activity;
@@ -153,10 +144,15 @@ function TripEditor({ id }: { id: string }) {
     }));
   };
 
-  const handleDeleteTrip = () => {
-    removeTrip(id);
-    toast.success(t("tripDeleted"));
-    router.push("/trips");
+  const handleDeleteTrip = async () => {
+    try {
+      await deleteTrip(id);
+      track("trip_deleted");
+      toast.success(t("tripDeleted"));
+      router.push("/my-trips");
+    } catch {
+      toast.error(t("saveFailed"));
+    }
   };
 
   /* ── render ─────────────────────────────────────────────────── */
@@ -166,10 +162,17 @@ function TripEditor({ id }: { id: string }) {
       <TripHeader
         trip={trip}
         onUpdate={update}
-        onDelete={handleDeleteTrip}
+        onDelete={() => void handleDeleteTrip()}
         onOpenShare={() => setShareOpen(true)}
         onOpenExport={() => setExportOpen(true)}
       />
+
+      {offline && mode === "cloud" && (
+        <div className="sticky top-14 z-20 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
+          <CloudOff className="mr-1.5 inline size-3.5" />
+          {t("offline")}
+        </div>
+      )}
 
       <div className="mx-auto flex w-full max-w-6xl items-start">
         <DayNav trip={trip} activeDayId={activeDay.id} onSelect={setActiveDayId} />
@@ -208,9 +211,7 @@ function TripEditor({ id }: { id: string }) {
                   currency={trip.currency}
                   onEdit={(a) => setEditor({ open: true, activity: a })}
                   onDuplicate={handleDuplicate}
-                  onDelete={(a) =>
-                    setDeleteTarget({ activity: a, dayNumber })
-                  }
+                  onDelete={(a) => setDeleteTarget({ activity: a, dayNumber })}
                   onReorder={handleReorder}
                 />
               ) : (
@@ -291,7 +292,7 @@ function EditorSkeleton() {
   );
 }
 
-function TripMissing() {
+export function TripMissing() {
   const { t } = useI18n();
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">

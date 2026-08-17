@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
   ChevronRight,
+  Cloud,
   Copy,
+  HardDrive,
   MapPin,
   MoreHorizontal,
   Pencil,
@@ -15,14 +17,19 @@ import {
   Share2,
   Trash2,
 } from "lucide-react";
-import type { Trip } from "@/types/trip";
+import type { Trip, TripStatus } from "@/types/trip";
 import { CURRENCIES } from "@/types/trip";
-import { deleteTrip, duplicateTrip, getTrips, saveTrip } from "@/lib/storage";
+import { deleteTrip, getTrips, saveTrip, duplicateTrip } from "@/lib/data";
+import * as storage from "@/lib/storage";
 import { formatDateRange, formatMoney } from "@/lib/format";
 import { computeBudget } from "@/lib/trip-utils";
 import { buildShareUrl, canShareAsLink } from "@/lib/share";
+import { tripProgress } from "@/lib/data/supabase-rows";
 import { track } from "@/lib/analytics";
 import { useI18n } from "@/lib/i18n";
+import type { TKey } from "@/lib/strings";
+import { useSession } from "@/components/auth/session-provider";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/trip/confirm-dialog";
+import { ImportDialog } from "@/components/trip/import-dialog";
 import { Wordmark } from "@/components/trip/wordmark";
 
 type DialogTarget =
@@ -57,19 +65,167 @@ type DialogTarget =
   | { kind: "delete"; trip: Trip }
   | null;
 
+const STATUS_KEYS: Record<TripStatus, TKey> = {
+  draft: "statusDraft",
+  planning: "statusPlanning",
+  ready: "statusReady",
+  completed: "statusCompleted",
+};
+
+function TripCard({
+  trip,
+  onOpen,
+  onRename,
+  onDelete,
+  onDuplicate,
+  onShare,
+}: {
+  trip: Trip;
+  onOpen: (t: Trip) => void;
+  onRename: (t: Trip) => void;
+  onDelete: (t: Trip) => void;
+  onDuplicate: (t: Trip) => void;
+  onShare: (t: Trip) => void;
+}) {
+  const { t, dayCount, activityCount } = useI18n();
+  const budget = computeBudget(trip);
+  const progress = tripProgress(trip);
+  const meta = [
+    dayCount(trip.days.length),
+    activityCount(budget.activityCount),
+    budget.total > 0 ? formatMoney(budget.total, trip.currency) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="group flex items-stretch gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20">
+      <button
+        type="button"
+        onClick={() => onOpen(trip)}
+        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+      >
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+          <MapPin className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          {trip.destination && (
+            <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {trip.destination}
+            </div>
+          )}
+          <div className="truncate text-[15px] font-semibold tracking-tight">
+            {trip.name}
+          </div>
+          <div className="mt-0.5 text-[13px] text-muted-foreground">
+            {trip.startDate && trip.endDate
+              ? formatDateRange(trip.startDate, trip.endDate)
+              : "—"}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground/80">
+            {meta && <span className="tabular-nums">{meta}</span>}
+            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+              {t(STATUS_KEYS[trip.status ?? "draft"])}
+              {progress > 0 &&
+                progress < 100 &&
+                ` · ${t("percentPlanned").replace("{n}", String(progress))}`}
+            </span>
+          </div>
+        </div>
+      </button>
+
+      <div className="flex shrink-0 flex-col items-center justify-center gap-2 sm:flex-row">
+        <Button
+          variant="outline"
+          size="sm"
+          className="hidden sm:inline-flex"
+          onClick={() => onOpen(trip)}
+        >
+          {t("open")}
+          <ChevronRight className="size-3.5" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t("moreOptions")}
+              className="rounded-md p-1.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <MoreHorizontal className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onOpen(trip)}>
+              <MapPin />
+              {t("open")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onShare(trip)}>
+              <Share2 />
+              {t("share")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onDuplicate(trip)}>
+              <Copy />
+              {t("duplicate")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onRename(trip)}>
+              <Pencil />
+              {t("rename")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => onDelete(trip)}
+            >
+              <Trash2 />
+              {t("delete")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+
 export default function MyTripsPage() {
   const router = useRouter();
-  const { t, dayCount, activityCount } = useI18n();
+  const { t } = useI18n();
+  const { user, loading: sessionLoading } = useSession();
+  const configured = isSupabaseConfigured();
+
   const [trips, setTrips] = useState<Trip[] | null>(null);
+  const [error, setError] = useState(false);
+  const [localCount, setLocalCount] = useState(0);
+  const [showImport, setShowImport] = useState(false);
   const [target, setTarget] = useState<DialogTarget>(null);
 
-  const refresh = () => setTrips(getTrips());
-
-  useEffect(() => {
-    refresh();
+  const load = useCallback(async () => {
+    setError(false);
+    setTrips(null);
+    try {
+      const all = await getTrips();
+      setTrips(all);
+    } catch {
+      setError(true);
+      setTrips([]);
+    }
   }, []);
 
-  // rename dialog form state
+  useEffect(() => {
+    void load();
+  }, [load, user]);
+
+  useEffect(() => {
+    if (user && !sessionLoading) {
+      const n = storage.getTrips().length;
+      setLocalCount(n);
+      if (n > 0) setShowImport(true);
+    } else if (!user) {
+      setLocalCount(storage.getTrips().length);
+      setShowImport(false);
+    }
+  }, [user, sessionLoading]);
+
+  // rename form state
   const [renameName, setRenameName] = useState("");
   const [renameDestination, setRenameDestination] = useState("");
   const [renameCurrency, setRenameCurrency] = useState("JPY");
@@ -81,7 +237,7 @@ export default function MyTripsPage() {
     setTarget({ kind: "rename", trip });
   };
 
-  const saveRename = () => {
+  const saveRename = async () => {
     if (!target || target.kind !== "rename") return;
     const updated: Trip = {
       ...target.trip,
@@ -90,47 +246,61 @@ export default function MyTripsPage() {
       currency: renameCurrency,
       updatedAt: Date.now(),
     };
-    saveTrip(updated);
-    refresh();
-    setTarget(null);
-    toast.success(t("tripUpdated"));
-  };
-
-  const handleDuplicate = (trip: Trip) => {
-    const copy = duplicateTrip(trip.id);
-    if (!copy) {
-      toast.error("Couldn't duplicate the trip");
-      return;
+    try {
+      await saveTrip(updated);
+      await load();
+      toast.success(t("tripUpdated"));
+    } catch {
+      toast.error(t("saveFailed"));
     }
-    refresh();
-    track("trip_duplicated");
-    toast.success(t("duplicatedAs").replace("{name}", copy.name));
+    setTarget(null);
   };
 
-  const handleDelete = () => {
+  const handleDuplicate = async (trip: Trip) => {
+    try {
+      const copy = await duplicateTrip(trip.id);
+      await load();
+      track("trip_duplicated");
+      toast.success(t("duplicatedAs").replace("{name}", copy?.name ?? ""));
+    } catch {
+      toast.error(t("saveFailed"));
+    }
+  };
+
+  const handleDelete = async () => {
     if (!target || target.kind !== "delete") return;
-    deleteTrip(target.trip.id);
-    refresh();
-    track("trip_deleted");
-    toast.success(t("tripDeleted"));
+    try {
+      await deleteTrip(target.trip.id);
+      await load();
+      track("trip_deleted");
+      toast.success(t("tripDeleted"));
+    } catch {
+      toast.error(t("saveFailed"));
+    }
   };
 
-  const handleShare = (trip: Trip) => {
+  const handleShare = async (trip: Trip) => {
     if (!canShareAsLink(trip)) {
-      toast.error(t("shareTooLarge"), {
-        description: t("shareTooLargeHint"),
-      });
+      toast.error(t("shareTooLarge"), { description: t("shareTooLargeHint") });
       return;
     }
     const url = buildShareUrl(trip);
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        track("trip_shared", { source: "my_trips" });
-        toast.success(t("linkCopied"));
-      })
-      .catch(() => toast.error(t("copyFailed")));
+    try {
+      await navigator.clipboard.writeText(url);
+      track("trip_shared", { source: "my_trips" });
+      toast.success(t("linkCopied"));
+    } catch {
+      toast.error(t("copyFailed"));
+    }
   };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = (trips ?? []).filter(
+    (trip) => !trip.endDate || trip.endDate >= today
+  );
+  const past = (trips ?? []).filter(
+    (trip) => trip.endDate && trip.endDate < today
+  );
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-5 py-8">
@@ -151,7 +321,19 @@ export default function MyTripsPage() {
       <div className="mt-12 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("myTrips")}</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">{t("savedInBrowser")}</p>
+          <p className="mt-1.5 flex items-center gap-1 text-sm text-muted-foreground">
+            {user ? (
+              <>
+                <Cloud className="size-3.5" />
+                {t("tripsSynced")}
+              </>
+            ) : (
+              <>
+                <HardDrive className="size-3.5" />
+                {t("savedInBrowser")}
+              </>
+            )}
+          </p>
         </div>
         <Button asChild size="sm">
           <Link href="/new">
@@ -161,10 +343,32 @@ export default function MyTripsPage() {
         </Button>
       </div>
 
-      {trips === null ? (
+      {!user && configured && (
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-3">
+          <p className="text-[13px] text-muted-foreground">{t("signInToSync")}</p>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/login">{t("logIn")}</Link>
+          </Button>
+        </div>
+      )}
+
+      {error ? (
+        <div className="mt-14 flex flex-col items-center rounded-xl border border-dashed px-6 py-16 text-center">
+          <p className="text-sm font-medium">{t("errorTitle")}</p>
+          <p className="mt-1 max-w-xs text-[13px] text-muted-foreground">
+            {t("errorDesc")}
+          </p>
+          <Button className="mt-5" size="sm" onClick={() => void load()}>
+            {t("reload")}
+          </Button>
+        </div>
+      ) : trips === null ? (
         <div className="mt-10 space-y-3">
           {[0, 1].map((i) => (
-            <div key={i} className="h-[110px] animate-pulse rounded-xl border bg-muted/40" />
+            <div
+              key={i}
+              className="h-[110px] animate-pulse rounded-xl border bg-muted/40"
+            />
           ))}
         </div>
       ) : trips.length === 0 ? (
@@ -185,100 +389,42 @@ export default function MyTripsPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-3">
-          {trips.map((trip) => {
-            const budget = computeBudget(trip);
-            const meta = [
-              dayCount(trip.days.length),
-              activityCount(budget.activityCount),
-              budget.total > 0 ? formatMoney(budget.total, trip.currency) : null,
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            return (
-              <div
-                key={trip.id}
-                className="group flex items-stretch gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20"
-              >
-                <button
-                  type="button"
-                  onClick={() => router.push(`/trip/${trip.id}`)}
-                  className="flex min-w-0 flex-1 items-center gap-4 text-left"
-                >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-                    <MapPin className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {trip.destination && (
-                      <div className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        {trip.destination}
-                      </div>
-                    )}
-                    <div className="truncate text-[15px] font-semibold tracking-tight">
-                      {trip.name}
-                    </div>
-                    <div className="mt-0.5 text-[13px] text-muted-foreground">
-                      {formatDateRange(trip.startDate, trip.endDate)}
-                    </div>
-                    {meta && (
-                      <div className="mt-1 text-xs tabular-nums text-muted-foreground/80">
-                        {meta}
-                      </div>
-                    )}
-                  </div>
-                </button>
-
-                <div className="flex shrink-0 flex-col items-center justify-center gap-2 sm:flex-row">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="hidden sm:inline-flex"
-                    onClick={() => router.push(`/trip/${trip.id}`)}
-                  >
-                    {t("open")}
-                    <ChevronRight className="size-3.5" />
-                  </Button>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={t("moreOptions")}
-                        className="rounded-md p-1.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => router.push(`/trip/${trip.id}`)}>
-                        <MapPin />
-                        {t("open")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleShare(trip)}>
-                        <Share2 />
-                        {t("share")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleDuplicate(trip)}>
-                        <Copy />
-                        {t("duplicate")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => openRename(trip)}>
-                        <Pencil />
-                        {t("rename")}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onSelect={() => setTarget({ kind: "delete", trip })}
-                      >
-                        <Trash2 />
-                        {t("delete")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            );
-          })}
+          {upcoming.length > 0 && (
+            <>
+              <h2 className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {t("upcoming")}
+              </h2>
+              {upcoming.map((trip) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onOpen={(trip) => router.push(`/trip/${trip.id}`)}
+                  onRename={openRename}
+                  onDelete={(trip) => setTarget({ kind: "delete", trip })}
+                  onDuplicate={(trip) => void handleDuplicate(trip)}
+                  onShare={(trip) => void handleShare(trip)}
+                />
+              ))}
+            </>
+          )}
+          {past.length > 0 && (
+            <>
+              <h2 className="px-1 pt-4 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {t("past")}
+              </h2>
+              {past.map((trip) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onOpen={(trip) => router.push(`/trip/${trip.id}`)}
+                  onRename={openRename}
+                  onDelete={(trip) => setTarget({ kind: "delete", trip })}
+                  onDuplicate={(trip) => void handleDuplicate(trip)}
+                  onShare={(trip) => void handleShare(trip)}
+                />
+              ))}
+            </>
+          )}
 
           <Button
             asChild
@@ -340,7 +486,7 @@ export default function MyTripsPage() {
             <Button variant="ghost" onClick={() => setTarget(null)}>
               {t("cancel")}
             </Button>
-            <Button onClick={saveRename}>{t("save")}</Button>
+            <Button onClick={() => void saveRename()}>{t("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -356,7 +502,17 @@ export default function MyTripsPage() {
             : ""
         }
         confirmLabel={t("deleteTripMenu")}
-        onConfirm={handleDelete}
+        onConfirm={() => void handleDelete()}
+      />
+
+      {/* localStorage → cloud import prompt */}
+      <ImportDialog
+        open={showImport && localCount > 0}
+        onOpenChange={setShowImport}
+        onImported={() => {
+          setLocalCount(0);
+          void load();
+        }}
       />
     </div>
   );

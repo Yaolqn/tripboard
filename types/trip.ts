@@ -44,6 +44,49 @@ export interface Trip {
   days: Day[];
   createdAt: number;
   updatedAt: number;
+  /** V0.3 cloud fields (optional for local/guest trips) */
+  slug?: string;
+  visibility?: TripVisibility;
+  status?: TripStatus;
+  theme?: ThemeId;
+  cover?: string;
+  showBudget?: boolean;
+  showNotes?: boolean;
+}
+
+/* ── V0.3 cloud enums ─────────────────────────────────────────── */
+
+export const VISIBILITIES = ["private", "unlisted", "public"] as const;
+export type TripVisibility = (typeof VISIBILITIES)[number];
+
+export const TRIP_STATUSES = ["draft", "planning", "ready", "completed"] as const;
+export type TripStatus = (typeof TRIP_STATUSES)[number];
+
+export const THEMES = [
+  { id: "minimal", pro: false },
+  { id: "classic", pro: false },
+  { id: "mono", pro: false },
+  { id: "japan", pro: true },
+  { id: "pastel", pro: true },
+  { id: "retro", pro: true },
+  { id: "luxury", pro: true },
+] as const;
+
+export type ThemeId = (typeof THEMES)[number]["id"];
+
+export const COVERS = ["tokyo", "seoul", "paris", "singapore", "taipei"] as const;
+export type CoverId = (typeof COVERS)[number];
+
+export function isVisibility(v: unknown): v is TripVisibility {
+  return typeof v === "string" && (VISIBILITIES as readonly string[]).includes(v);
+}
+
+export function isTheme(v: unknown): v is ThemeId {
+  return typeof v === "string" && (THEMES as readonly { id: string }[]).some((t) => t.id === v);
+}
+
+export function isTripStatus(v: unknown): v is TripStatus {
+  return typeof v === "string" && (TRIP_STATUSES as readonly string[]).includes(v);
 }
 
 export const CURRENCIES = [
