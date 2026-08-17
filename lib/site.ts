@@ -6,9 +6,12 @@
 export function siteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL;
   if (fromEnv) return fromEnv.replace(/\/+$/, "");
-  // Vercel sets VERCEL_URL during builds and at runtime (e.g.
-  // "tripboard-phi.vercel.app") — keeps canonical/OG on the real domain
-  // even when NEXT_PUBLIC_SITE_URL isn't configured.
+  // Vercel build envs:
+  // - VERCEL_PROJECT_PRODUCTION_URL = the project's stable production domain
+  //   (e.g. "tripboard-phi.vercel.app") — preferred for canonical/OG
+  // - VERCEL_URL = the unique per-deployment URL (used for previews)
+  const projectUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (projectUrl) return `https://${projectUrl}`;
   const vercel = process.env.VERCEL_URL;
   if (vercel) return `https://${vercel}`;
   if (typeof window !== "undefined") return window.location.origin;
