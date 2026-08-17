@@ -124,7 +124,9 @@ export function ActivityEditor({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Time & Cost: stacked on small screens (native time input has a
+                large intrinsic width that overlaps a narrow neighbor column). */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="tb-time">{t("time")}</Label>
                 <Input

@@ -112,7 +112,9 @@ export default function NewTripPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Start & End dates: stacked on small screens — native date inputs
+            have a wide intrinsic size that overlaps in a narrow 2-col row. */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="tb-start">{t("startDate")}</Label>
             <Input
