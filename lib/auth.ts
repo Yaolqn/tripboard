@@ -1,6 +1,5 @@
 "use client";
 
-import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { useSession } from "@/components/auth/session-provider";
@@ -32,18 +31,6 @@ export async function signUpWithEmail(
     !error && data.session === null && data.user
   );
   return { error: error?.message ?? null, needsConfirmation };
-}
-
-export async function signInWithGoogle(next?: string): Promise<void> {
-  const supabase = getBrowserSupabase();
-  if (!supabase) return;
-  const redirectTo = new URL("/auth/callback", window.location.origin);
-  if (next) redirectTo.searchParams.set("next", next);
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: redirectTo.toString() },
-  });
-  if (error) toast.error(error.message);
 }
 
 export async function signOut(): Promise<void> {
