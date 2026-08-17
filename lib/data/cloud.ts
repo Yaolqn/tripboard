@@ -264,19 +264,36 @@ export async function cloudImportTrips(
 ): Promise<number> {
   let imported = 0;
   for (const trip of trips) {
-    try {
-      await cloudSaveTrip(supabase, {
-        ...trip,
+    const cloudTrip: Trip = {
+      ...trip,
+      id: newId(),
+      slug: undefined,
+      visibility: "private",
+      status: "draft",
+      days: trip.days.map((d) => ({
+        ...d,
         id: newId(),
-        slug: undefined,
-        visibility: "private",
-        status: "draft",
-        days: trip.days.map((d) => ({ ...d, id: newId() })),
-      });
+        // Local/demo trips can carry non-UUID activity ids (e.g.
+        // "demo-tokyo-0-0") which the uuid columns reject — remap them.
+        activities: d.activities.map((a) => ({ ...a, id: newId() })),
+      })),
+    };
+    try {
+      await cloudSaveTrip(supabase, cloudTrip);
       imported += 1;
     } catch (err) {
-      // One bad trip shouldn't block the rest, but don't swallow silently.
-      console.error("[tripboard] import failed for", trip.name, err);
+      // Best-effort rollback of partially inserted rows (each request is a
+      // separate transaction), then keep going with the rest.
+      try {
+        await supabase.from("trips").delete().eq("id", cloudTrip.id);
+      } catch {
+        // ignore
+      }
+      console.error(
+        "[tripboard] import failed for",
+        trip.name,
+        JSON.stringify(err)
+      );
     }
   }
   return imported;
