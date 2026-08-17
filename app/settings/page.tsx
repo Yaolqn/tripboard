@@ -29,11 +29,13 @@ export default function SettingsPage() {
   const handleImport = async () => {
     setImporting(true);
     try {
-      const n = await importLocalTrips();
-      if (n > 0) {
-        track("trip_imported", { count: n });
+      const { imported, total } = await importLocalTrips();
+      if (imported > 0) {
+        track("trip_imported", { count: imported });
         toast.success(t("tripsSynced"));
         setLocalCount(0);
+      } else if (total > 0) {
+        toast.error(t("saveFailed"));
       } else {
         toast(t("nothingToImport"));
       }

@@ -111,11 +111,52 @@ export async function ensureSlug(trip: Trip): Promise<string> {
   return trip.slug ?? trip.id;
 }
 
-/** Import local trips into the cloud; returns how many were imported. */
-export async function importLocalTrips(): Promise<number> {
+const tripSignature = (t: Trip) =>
+  `${t.name}|${t.destination}|${t.startDate}|${t.endDate}`;
+
+/**
+ * Import local trips into the cloud and prune the successfully imported
+ * ones from localStorage (failed trips stay for a retry). Trips that are
+ * already in the cloud (same name/destination/dates) are skipped — they're
+ * treated as done and pruned too, so re-imports don't create duplicates.
+ */
+export async function importLocalTrips(): Promise<{
+  imported: number;
+  total: number;
+}> {
   const local = storage.getTrips();
-  if (local.length === 0) return 0;
+  if (local.length === 0) return { imported: 0, total: 0 };
   const user = await currentUser();
-  if (!user || !getBrowserSupabase()) return 0;
-  return cloudImportTrips(getBrowserSupabase()!, local);
+  const supabase = getBrowserSupabase();
+  if (!user || !supabase) return { imported: 0, total: local.length };
+
+  // Skip trips that already exist in the cloud (same signature).
+  let existing = new Set<string>();
+  try {
+    const cloudTrips = await cloudGetTrips(supabase);
+    existing = new Set(cloudTrips.map(tripSignature));
+  } catch {
+    // if the lookup fails, attempt everything
+  }
+  const skippedIds = new Set(
+    local.filter((t) => existing.has(tripSignature(t))).map((t) => t.id)
+  );
+  const toImport = local.filter((t) => !existing.has(tripSignature(t)));
+
+  let imported = 0;
+  let failedIds = new Set<string>();
+  if (toImport.length > 0) {
+    const result = await cloudImportTrips(supabase, toImport);
+    imported = result.imported;
+    failedIds = result.failedIds;
+  }
+
+  // Prune everything that's now safely in the cloud (imported or skipped);
+  // keep only genuinely failed trips for a retry.
+  if (failedIds.size === 0) {
+    storage.saveTrips([]);
+  } else {
+    storage.saveTrips(local.filter((t) => failedIds.has(t.id)));
+  }
+  return { imported: imported + skippedIds.size, total: local.length };
 }

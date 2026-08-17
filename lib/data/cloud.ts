@@ -257,12 +257,17 @@ export async function cloudDeleteTrip(
   if (error) throw error;
 }
 
-/** Insert local trips into the cloud (used by the import flow). */
+/**
+ * Insert local trips into the cloud (used by the import flow).
+ * Returns how many were imported and the ids of the trips that failed
+ * (so callers can prune the successfully imported ones from localStorage).
+ */
 export async function cloudImportTrips(
   supabase: SupabaseClient,
   trips: Trip[]
-): Promise<number> {
+): Promise<{ imported: number; failedIds: Set<string> }> {
   let imported = 0;
+  const failedIds = new Set<string>();
   for (const trip of trips) {
     const cloudTrip: Trip = {
       ...trip,
@@ -289,6 +294,7 @@ export async function cloudImportTrips(
       } catch {
         // ignore
       }
+      failedIds.add(trip.id);
       console.error(
         "[tripboard] import failed for",
         trip.name,
@@ -296,7 +302,7 @@ export async function cloudImportTrips(
       );
     }
   }
-  return imported;
+  return { imported, failedIds };
 }
 
 /* ── invitations ──────────────────────────────────────────────── */

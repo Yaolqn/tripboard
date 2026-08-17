@@ -40,13 +40,13 @@ export function ImportDialog({
   const handleImport = async () => {
     setBusy(true);
     try {
-      const n = await importLocalTrips();
-      if (n > 0) {
-        track("trip_imported", { count: n });
+      const { imported, total } = await importLocalTrips();
+      if (imported > 0) {
+        track("trip_imported", { count: imported });
         toast.success(t("tripsSynced"));
         onImported();
         onOpenChange(false);
-      } else if (trips.length > 0) {
+      } else if (total > 0) {
         // storage had trips but nothing made it to the cloud — surface it
         toast.error(t("saveFailed"));
       } else {
