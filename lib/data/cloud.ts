@@ -148,6 +148,31 @@ export async function cloudCreateTrip(
   };
 
   const set = tripToWriteSet(trip);
+  const placeRows = trip.days.flatMap((day) =>
+    day.activities.flatMap((activity) => {
+      const place = activity.place;
+      if (!place || !activity.placeId) return [];
+      return [{
+        id: activity.placeId,
+        provider: place.provider,
+        provider_place_id: place.providerPlaceId,
+        name: place.name,
+        formatted_address: place.formattedAddress,
+        city: place.city ?? null,
+        country: place.country ?? null,
+        country_code: place.countryCode ?? null,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      }];
+    })
+  );
+  if (placeRows.length > 0) {
+    const { error: placeErr } = await supabase.from("places").upsert(placeRows, {
+      onConflict: "provider,provider_place_id",
+    });
+    if (placeErr) throw placeErr;
+  }
+
   const { error: tripErr } = await supabase
     .from("trips")
     .insert({ ...set.trip, user_id: user.id });
