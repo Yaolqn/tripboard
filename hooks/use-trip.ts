@@ -1,9 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { Trip } from "@/types/trip";
 import * as data from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+
+function isNetworkFailure(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true;
+  if (!(error instanceof Error)) return false;
+  if (error.name === "TypeError" || error.name === "NetworkError") return true;
+  return /failed to fetch|network request failed|network error|offline|connection refused|load failed/i.test(
+    error.message,
+  );
+}
 
 export type TripState = Trip | null | "loading";
 
@@ -69,7 +79,14 @@ export function useTrip(id: string | null | undefined): UseTripResult {
       if (mounted.current) setOffline(false);
     } catch (err) {
       console.error("[tripboard] save failed", err);
-      if (mounted.current) setOffline(true);
+      if (mounted.current) {
+        const networkFailure = isNetworkFailure(err);
+        setOffline(networkFailure);
+        const message = err instanceof Error ? err.message : "Unknown save error";
+        toast.error(networkFailure ? "网络连接失败" : "旅行保存失败", {
+          description: message,
+        });
+      }
     } finally {
       if (mounted.current) setSaving(false);
     }
