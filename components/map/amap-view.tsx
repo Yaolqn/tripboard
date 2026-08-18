@@ -8,6 +8,7 @@ import {
   isValidCoordinate,
   loadAMap,
   type AMapApi,
+  type AMapInfoWindowInstance,
   type AMapLngLat,
   type AMapMapInstance,
 } from "@/lib/amap/client";
@@ -53,6 +54,7 @@ export function AMapView({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<AMapMapInstance | null>(null);
   const overlaysRef = useRef<unknown[]>([]);
+  const infoWindowRef = useRef<AMapInfoWindowInstance | null>(null);
   const onLoadErrorRef = useRef(onLoadError);
   const [api, setApi] = useState<AMapApi | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,13 +128,35 @@ export function AMapView({
 
       const validMarkers = markers.filter((marker) => isValidCoordinate(marker.position));
       const markerOverlays = validMarkers.map((marker) => {
+        const markerContent = `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="display:block;width:16px;height:16px;border:3px solid white;border-radius:50%;background:${markerColor(marker.kind)};box-shadow:0 1px 4px #0006"></span>
+            ${marker.title ? `<div style="background:white;padding:2px 6px;border-radius:3px;font-size:11px;font-weight:500;box-shadow:0 1px 3px #0003;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;color:#333;">${marker.title}</div>` : ""}
+          </div>
+        `;
         const overlay = new api.Marker({
           position: [marker.position.lng, marker.position.lat],
           title: marker.title,
-          content: `<span style="display:block;width:16px;height:16px;border:3px solid white;border-radius:50%;background:${markerColor(marker.kind)};box-shadow:0 1px 4px #0006"></span>`,
-          offset: api.Pixel ? new api.Pixel(-8, -8) : undefined,
+          content: markerContent,
+          offset: api.Pixel ? new api.Pixel(-8, marker.title ? -38 : -8) : undefined,
         });
-        overlay.on("click", () => onMarkerClick?.(marker));
+        overlay.on("click", () => {
+          onMarkerClick?.(marker);
+          if (api.InfoWindow && mapRef.current) {
+            if (infoWindowRef.current) {
+              infoWindowRef.current.close();
+            }
+            const content = `
+              <div style="padding:8px 12px;max-width:200px;font-size:13px;">
+                <div style="font-weight:600;margin-bottom:4px;">${marker.title || "未命名地点"}</div>
+                ${marker.detail ? `<div style="color:#666;line-height:1.4;">${marker.detail}</div>` : ""}
+              </div>
+            `;
+            const infoWindow = new api.InfoWindow({ content, offset: [0, -30] });
+            infoWindow.open(mapRef.current, marker.position);
+            infoWindowRef.current = infoWindow;
+          }
+        });
         return overlay;
       });
       const validPath = path.filter(isValidCoordinate);

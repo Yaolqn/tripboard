@@ -22,10 +22,17 @@ export interface AMapPolylineInstance {
   setMap(map: AMapMapInstance | null): void;
 }
 
+export interface AMapInfoWindowInstance {
+  setContent(content: string | HTMLElement): void;
+  open(map: AMapMapInstance, position: AMapLngLat): void;
+  close(): void;
+}
+
 export interface AMapApi {
   Map: new (container: HTMLElement, options?: Record<string, unknown>) => AMapMapInstance;
   Marker: new (options?: Record<string, unknown>) => AMapMarkerInstance;
   Polyline: new (options?: Record<string, unknown>) => AMapPolylineInstance;
+  InfoWindow: new (options?: Record<string, unknown>) => AMapInfoWindowInstance;
   Pixel?: new (x: number, y: number) => unknown;
 }
 
