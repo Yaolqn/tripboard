@@ -51,6 +51,22 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
    **Redirect URL** `https://<your-domain>/auth/callback` (both on Google Cloud
    and in Supabase → Authentication → URL Configuration).
 
+## Amap POI search (optional)
+
+The place picker can search Amap (Gaode) POIs through the server route
+`/api/places/search`. Create a Web Service key in the Amap console and add the
+following variables to `.env.local` or your deployment environment:
+
+```env
+AMAP_WEB_SERVICE_KEY=
+AMAP_WEB_SERVICE_SECRET=
+```
+
+Both variables are server-only. Do not prefix them with `NEXT_PUBLIC_` or expose
+them in browser code. `AMAP_WEB_SERVICE_SECRET` is optional; when present it is
+used to sign requests. If the key is not configured, users can still type and
+save a location manually.
+
 ## Production
 
 ```bash
