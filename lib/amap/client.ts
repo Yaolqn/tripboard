@@ -42,7 +42,7 @@ let loading: Promise<AMapApi | null> | null = null;
 
 function getConfig() {
   return {
-    key: process.env.NEXT_PUBLIC_AMAP_JS_KEY ?? process.env.NEXT_PUBLIC_AMAP_KEY,
+    key: process.env.NEXT_PUBLIC_AMAP_JS_KEY,
     securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE,
   };
 }

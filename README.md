@@ -54,18 +54,25 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ## Amap POI search (optional)
 
 The place picker can search Amap (Gaode) POIs through the server route
-`/api/places/search`. Create a Web Service key in the Amap console and add the
-following variables to `.env.local` or your deployment environment:
+`/api/places/search`. Configure the following variables in `.env.local` or your
+deployment environment:
 
 ```env
+# Browser JS API 2.0
+NEXT_PUBLIC_AMAP_JS_KEY=
+NEXT_PUBLIC_AMAP_SECURITY_CODE=
+
+# Server-side POI search
 AMAP_WEB_SERVICE_KEY=
-AMAP_WEB_SERVICE_SECRET=
 ```
 
-Both variables are server-only. Do not prefix them with `NEXT_PUBLIC_` or expose
-them in browser code. `AMAP_WEB_SERVICE_SECRET` is optional; when present it is
-used to sign requests. If the key is not configured, users can still type and
-save a location manually.
+`NEXT_PUBLIC_AMAP_JS_KEY` is used by the browser map loader and should be
+restricted with a domain whitelist. The JS API security code must be configured
+through environment variables and must never be committed to GitHub. The
+`AMAP_WEB_SERVICE_KEY` is server-only and is read only by the Next.js route
+`/api/places/search`; never expose it with a `NEXT_PUBLIC_` prefix. No Web
+Service secret is required. If the Web Service key is not configured, users can
+still type and save a location manually.
 
 ## Production
 
@@ -85,10 +92,9 @@ npm run start
 | `NEXT_PUBLIC_SITE_URL`     | Your production URL, e.g. `https://tripboard.vercel.app`               |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL                                                   |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon public key (safe for the browser; never use the service-role key) |
-| `NEXT_PUBLIC_AMAP_KEY` | AMap JS API 2.0 browser key; restrict it with the production/local domain whitelist |
-| `NEXT_PUBLIC_AMAP_SECURITY_CODE` | Optional AMap JS security code; safe only when paired with the JS key |
-| `AMAP_WEB_SERVICE_KEY` | AMap Web Service key used only by the server-side search route |
-| `AMAP_WEB_SERVICE_SECRET` | Optional server-only Web Service signing secret; never expose it to the browser |
+| `NEXT_PUBLIC_AMAP_JS_KEY` | AMap JS API 2.0 browser key; restrict it with the production/local domain whitelist |
+| `NEXT_PUBLIC_AMAP_SECURITY_CODE` | AMap JS API security code; configure it in the deployment platform and never commit the value |
+| `AMAP_WEB_SERVICE_KEY` | AMap Web Service key used only by the server-side `/api/places/search` route |
 
 Never commit `.env.local` or any secret.
 
