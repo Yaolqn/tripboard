@@ -35,12 +35,14 @@ export function DayRouteMap({
   }));
   const path = markers.map((marker) => marker.position);
 
+  const hasActivities = activities.length > 0;
+
   return (
     <AMapView
       {...props}
       markers={markers}
       path={path}
-      emptyMessage={places.length === 0 ? emptyMessage : noPlacesMessage}
+      emptyMessage={hasActivities ? noPlacesMessage : emptyMessage}
     />
   );
 }

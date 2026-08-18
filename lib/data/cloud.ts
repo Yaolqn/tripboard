@@ -33,6 +33,71 @@ export interface CloudCreateInput {
   };
 }
 
+interface PlaceInput {
+  provider: "amap";
+  provider_place_id: string;
+  name: string;
+  formatted_address: string;
+  city: string | null;
+  country: string | null;
+  country_code: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+async function resolvePlaceIds(
+  supabase: SupabaseClient,
+  trip: Trip,
+): Promise<Trip> {
+  const inputs = trip.days.flatMap((day) =>
+    day.activities.flatMap((activity): PlaceInput[] => {
+      const place = activity.place;
+      if (!place) return [];
+      return [{
+        provider: place.provider,
+        provider_place_id: place.providerPlaceId,
+        name: place.name,
+        formatted_address: place.formattedAddress,
+        city: place.city ?? null,
+        country: place.country ?? null,
+        country_code: place.countryCode ?? null,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      }];
+    }),
+  );
+  const uniqueInputs = Array.from(
+    new Map(inputs.map((input) => [`${input.provider}:${input.provider_place_id}`, input])).values(),
+  );
+  if (uniqueInputs.length === 0) return trip;
+
+  const { data, error } = await supabase.rpc("resolve_places", {
+    place_inputs: uniqueInputs,
+  });
+  if (error) throw new Error(`Unable to save map locations: ${error.message}`);
+  const ids = new Map(
+    ((data ?? []) as Array<{ id: string; provider: string; provider_place_id: string }>)
+      .map((row) => [`${row.provider}:${row.provider_place_id}`, row.id]),
+  );
+  for (const input of uniqueInputs) {
+    if (!ids.has(`${input.provider}:${input.provider_place_id}`)) {
+      throw new Error(`Unable to resolve map location ${input.provider_place_id}`);
+    }
+  }
+  return {
+    ...trip,
+    days: trip.days.map((day) => ({
+      ...day,
+      activities: day.activities.map((activity) => ({
+        ...activity,
+        placeId: activity.place
+          ? ids.get(`${activity.place.provider}:${activity.place.providerPlaceId}`)
+          : undefined,
+      })),
+    })),
+  };
+}
+
 export async function cloudGetTrips(
   supabase: SupabaseClient
 ): Promise<Trip[]> {
@@ -147,31 +212,8 @@ export async function cloudCreateTrip(
     cover: input.fromTemplate?.cover,
   };
 
-  const set = tripToWriteSet(trip);
-  const placeRows = trip.days.flatMap((day) =>
-    day.activities.flatMap((activity) => {
-      const place = activity.place;
-      if (!place || !activity.placeId) return [];
-      return [{
-        id: activity.placeId,
-        provider: place.provider,
-        provider_place_id: place.providerPlaceId,
-        name: place.name,
-        formatted_address: place.formattedAddress,
-        city: place.city ?? null,
-        country: place.country ?? null,
-        country_code: place.countryCode ?? null,
-        latitude: place.latitude,
-        longitude: place.longitude,
-      }];
-    })
-  );
-  if (placeRows.length > 0) {
-    const { error: placeErr } = await supabase.from("places").upsert(placeRows, {
-      onConflict: "provider,provider_place_id",
-    });
-    if (placeErr) throw placeErr;
-  }
+  const resolvedTrip = await resolvePlaceIds(supabase, trip);
+  const set = tripToWriteSet(resolvedTrip);
 
   const { error: tripErr } = await supabase
     .from("trips")
@@ -205,7 +247,7 @@ export async function cloudCreateTrip(
   } catch {
     // non-fatal — ownership is enforced by trips.user_id
   }
-  return trip;
+  return resolvedTrip;
 }
 
 /** Full-document upsert: trip + days + activities (removes deleted rows). */
@@ -213,66 +255,12 @@ export async function cloudSaveTrip(
   supabase: SupabaseClient,
   trip: Trip
 ): Promise<void> {
-  const placeInputs = trip.days.flatMap((day) =>
-    day.activities.flatMap((activity) => {
-      const place = activity.place;
-      if (!place) return [];
-      return [{
-        key: `${place.provider}:${place.providerPlaceId}`,
-        provider: place.provider,
-        provider_place_id: place.providerPlaceId,
-        name: place.name,
-        formatted_address: place.formattedAddress,
-        city: place.city ?? null,
-        country: place.country ?? null,
-        country_code: place.countryCode ?? null,
-        latitude: place.latitude,
-        longitude: place.longitude,
-      }];
-    })
-  );
-  const uniquePlaceInputs = Array.from(new Map(placeInputs.map((row) => [row.key, row])).values());
-  let resolvedTrip = trip;
-  if (uniquePlaceInputs.length > 0) {
-    const { error: placeErr } = await supabase.from("places").upsert(
-      uniquePlaceInputs.map((row) => ({
-        provider: row.provider,
-        provider_place_id: row.provider_place_id,
-        name: row.name,
-        formatted_address: row.formatted_address,
-        city: row.city,
-        country: row.country,
-        country_code: row.country_code,
-        latitude: row.latitude,
-        longitude: row.longitude,
-      })),
-      { onConflict: "provider,provider_place_id" }
-    );
-    if (placeErr) throw placeErr;
-    const { data: savedPlaces, error: placeReadErr } = await supabase
-      .from("places")
-      .select("*")
-      .in("provider_place_id", uniquePlaceInputs.map((row) => row.provider_place_id));
-    if (placeReadErr) throw placeReadErr;
-    const ids = new Map((savedPlaces ?? []).map((row) => [`${row.provider}:${row.provider_place_id}`, row.id]));
-    resolvedTrip = {
-      ...trip,
-      days: trip.days.map((day) => ({
-        ...day,
-        activities: day.activities.map((activity) => ({
-          ...activity,
-          placeId: activity.place
-            ? ids.get(`${activity.place.provider}:${activity.place.providerPlaceId}`)
-            : undefined,
-        })),
-      })),
-    };
-  }
-  const set = tripToWriteSet(resolvedTrip);
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in");
+  const resolvedTrip = await resolvePlaceIds(supabase, trip);
+  const set = tripToWriteSet(resolvedTrip);
 
   const { error: tripErr } = await supabase
     .from("trips")

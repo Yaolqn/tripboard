@@ -38,41 +38,86 @@ declare global {
 
 const SCRIPT_ID = "tripboard-amap-js-api";
 const API_URL = "https://webapi.amap.com/maps?v=2.0";
-let loading: Promise<AMapApi | null> | null = null;
+const LOAD_TIMEOUT_MS = 12_000;
+let loading: Promise<AMapApi> | null = null;
+
+export type AMapLoadErrorCode =
+  | "ssr"
+  | "missing-key"
+  | "script-error"
+  | "timeout"
+  | "api-missing";
+
+export class AMapLoadError extends Error {
+  readonly code: AMapLoadErrorCode;
+
+  constructor(code: AMapLoadErrorCode, message: string) {
+    super(message);
+    this.name = "AMapLoadError";
+    this.code = code;
+  }
+}
 
 function getConfig() {
   return {
-    key: process.env.NEXT_PUBLIC_AMAP_JS_KEY,
-    securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE,
+    key: process.env.NEXT_PUBLIC_AMAP_JS_KEY?.trim(),
+    securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE?.trim(),
   };
 }
 
-/** Load AMap only in a browser. A missing key or failed script resolves to null. */
-export function loadAMap(): Promise<AMapApi | null> {
+function removeFailedScript() {
+  document.getElementById(SCRIPT_ID)?.remove();
+}
+
+/** Load AMap only in a browser and preserve a useful failure reason for the UI. */
+export function loadAMap(): Promise<AMapApi> {
   if (typeof window === "undefined" || typeof document === "undefined") {
-    return Promise.resolve(null);
+    return Promise.reject(new AMapLoadError("ssr", "AMap can only load in a browser."));
   }
   if (window.AMap) return Promise.resolve(window.AMap);
   if (loading) return loading;
 
   const { key, securityJsCode } = getConfig();
-  if (!key) return Promise.resolve(null);
-  if (securityJsCode) window._AMapSecurityConfig = { securityJsCode };
+  if (!key) {
+    return Promise.reject(
+      new AMapLoadError("missing-key", "NEXT_PUBLIC_AMAP_JS_KEY is not configured."),
+    );
+  }
+  // AMap reads this global while the script initializes, so assign it first.
+  window._AMapSecurityConfig = securityJsCode ? { securityJsCode } : undefined;
 
-  loading = new Promise<AMapApi | null>((resolve) => {
+  loading = new Promise<AMapApi>((resolve, reject) => {
+    let settled = false;
+    const finish = (error?: AMapLoadError) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      if (error) {
+        removeFailedScript();
+        reject(error);
+      } else if (window.AMap) {
+        resolve(window.AMap);
+      } else {
+        removeFailedScript();
+        reject(new AMapLoadError("api-missing", "AMap script loaded without exposing window.AMap."));
+      }
+    };
+    const timer = window.setTimeout(
+      () => finish(new AMapLoadError("timeout", "AMap script loading timed out.")),
+      LOAD_TIMEOUT_MS,
+    );
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.AMap ?? null), { once: true });
-      existing.addEventListener("error", () => resolve(null), { once: true });
-      return;
-    }
-    const script = document.createElement("script");
+    const script = existing ?? document.createElement("script");
     script.id = SCRIPT_ID;
-    script.async = true;
-    script.src = `${API_URL}&key=${encodeURIComponent(key)}`;
-    script.onload = () => resolve(window.AMap ?? null);
-    script.onerror = () => resolve(null);
-    document.head.appendChild(script);
+    script.onload = () => finish();
+    script.onerror = () => finish(new AMapLoadError("script-error", "AMap script failed to load."));
+    if (!existing) {
+      script.async = true;
+      script.src = `${API_URL}&key=${encodeURIComponent(key)}`;
+      document.head.appendChild(script);
+    } else if (window.AMap) {
+      finish();
+    }
   }).finally(() => {
     loading = null;
   });

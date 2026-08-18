@@ -408,13 +408,13 @@ export default function MyTripsPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-3">
-          {travelPlaces.length > 0 && (
-            <WorldTravelMap
-              places={travelPlaces}
-              className="h-[300px] sm:h-[400px]"
-              emptyMessage="Map is unavailable. Configure the map provider to enable maps."
-            />
-          )}
+          <WorldTravelMap
+            places={travelPlaces}
+            className="h-[300px] sm:h-[400px]"
+            emptyMessage={travelPlaces.length > 0
+              ? "Map is unavailable. Configure the map provider to enable maps."
+              : "No saved places yet. Select a place in an activity to add it to this map."}
+          />
           {upcoming.length > 0 && (
             <>
               <h2 className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
