@@ -29,7 +29,7 @@ export interface ActivityRow {
   type: string;
   location: string | null;
   place_id: string | null;
-  place?: PlaceRow | null;
+  place?: PlaceRow | PlaceRow[] | null;
   cost: number | null;
   notes: string | null;
   url: string | null;
@@ -70,21 +70,22 @@ export interface TripRow {
 
 const toISO = (d: string | null): string => d ?? "";
 
-function rowToPlace(row: PlaceRow): Place | undefined {
-  if (row.provider !== "amap") return undefined;
+function rowToPlace(row: PlaceRow | PlaceRow[]): Place | undefined {
+  const place = Array.isArray(row) ? row[0] : row;
+  if (!place || place.provider !== "amap") return undefined;
   return {
-    id: row.id,
+    id: place.id,
     provider: "amap",
-    providerPlaceId: row.provider_place_id,
-    name: row.name,
-    formattedAddress: row.formatted_address,
-    city: row.city ?? undefined,
-    country: row.country ?? undefined,
-    countryCode: row.country_code ?? undefined,
-    latitude: Number(row.latitude),
-    longitude: Number(row.longitude),
-    createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
-    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : undefined,
+    providerPlaceId: place.provider_place_id,
+    name: place.name,
+    formattedAddress: place.formatted_address,
+    city: place.city ?? undefined,
+    country: place.country ?? undefined,
+    countryCode: place.country_code ?? undefined,
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude),
+    createdAt: place.created_at ? new Date(place.created_at).getTime() : undefined,
+    updatedAt: place.updated_at ? new Date(place.updated_at).getTime() : undefined,
   };
 }
 

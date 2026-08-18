@@ -92,7 +92,7 @@ begin
       or item.longitude not between -180 and 180 then
       raise exception 'Invalid place input';
     end if;
-    insert into public.places (
+    insert into public.places as p (
       provider, provider_place_id, name, formatted_address,
       city, country, country_code, latitude, longitude, updated_at
     ) values (
@@ -100,7 +100,7 @@ begin
       coalesce(item.formatted_address, ''), item.city, item.country,
       item.country_code, item.latitude, item.longitude, now()
     )
-    on conflict (provider, provider_place_id) do update set
+    on conflict on constraint places_provider_provider_place_id_key do update set
       name = excluded.name,
       formatted_address = excluded.formatted_address,
       city = excluded.city,
@@ -109,7 +109,7 @@ begin
       latitude = excluded.latitude,
       longitude = excluded.longitude,
       updated_at = now()
-    returning public.places.id into resolved_id;
+    returning p.id into resolved_id;
     id := resolved_id;
     provider := item.provider;
     provider_place_id := item.provider_place_id;
