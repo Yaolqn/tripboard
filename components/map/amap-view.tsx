@@ -155,7 +155,9 @@ export function AMapView({
         map.setZoom(zoom);
       }
       return () => {
-        map.remove(overlays);
+        if (mapRef.current) {
+          mapRef.current.remove(overlays);
+        }
       };
     } catch (cause) {
       const failure = new AMapLoadError(
