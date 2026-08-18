@@ -11,13 +11,33 @@ export const ACTIVITY_TYPES = [
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
+export interface Place {
+  id: string;
+  provider: "amap";
+  providerPlaceId: string;
+  name: string;
+  formattedAddress: string;
+  city?: string;
+  country?: string;
+  countryCode?: string;
+  latitude: number;
+  longitude: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface Activity {
   id: string;
   type: ActivityType;
   title: string;
   /** "HH:MM" in 24h format, or "" when unset */
   time: string;
+  /** V0.3 display-only location retained for old trips and offline data. */
   location?: string;
+  /** Structured place selected from a provider. */
+  placeId?: string;
+  /** Embedded copy used by guest trips and share payloads. */
+  place?: Place;
   /** Positive number; absent when the activity has no recorded cost */
   cost?: number;
   notes?: string;

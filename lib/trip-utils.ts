@@ -7,6 +7,7 @@ import {
   type Activity,
   type ActivityType,
   type Day,
+  type Place,
   type Trip,
 } from "@/types/trip";
 import { addDays, parseISODate, toISODate } from "@/lib/format";
@@ -176,6 +177,38 @@ export function computeBudget(trip: Trip): BudgetBreakdown {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function sanitizePlace(raw: unknown): Place | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (
+    r.provider !== "amap" ||
+    typeof r.providerPlaceId !== "string" ||
+    typeof r.name !== "string" ||
+    typeof r.formattedAddress !== "string" ||
+    typeof r.latitude !== "number" ||
+    !isFinite(r.latitude) ||
+    typeof r.longitude !== "number" ||
+    !isFinite(r.longitude)
+  ) {
+    return undefined;
+  }
+  return {
+    id: typeof r.id === "string" && r.id ? r.id : newId(),
+    provider: "amap",
+    providerPlaceId: r.providerPlaceId,
+    name: r.name,
+    formattedAddress: r.formattedAddress,
+    city: typeof r.city === "string" && r.city ? r.city : undefined,
+    country: typeof r.country === "string" && r.country ? r.country : undefined,
+    countryCode:
+      typeof r.countryCode === "string" && r.countryCode ? r.countryCode : undefined,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    createdAt: typeof r.createdAt === "number" ? r.createdAt : undefined,
+    updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : undefined,
+  };
+}
+
 function sanitizeActivity(raw: unknown): Activity | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
@@ -189,6 +222,11 @@ function sanitizeActivity(raw: unknown): Activity | null {
     title: r.title,
     time: typeof r.time === "string" ? r.time : "",
     location: typeof r.location === "string" && r.location ? r.location : undefined,
+    placeId: typeof r.placeId === "string" && r.placeId ? r.placeId : undefined,
+    place:
+      typeof r.place === "object" && r.place !== null
+        ? sanitizePlace(r.place)
+        : undefined,
     cost,
     notes: typeof r.notes === "string" && r.notes ? r.notes : undefined,
     url: typeof r.url === "string" && r.url ? r.url : undefined,

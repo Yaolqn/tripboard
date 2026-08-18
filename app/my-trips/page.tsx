@@ -59,6 +59,7 @@ import {
 import { ConfirmDialog } from "@/components/trip/confirm-dialog";
 import { ImportDialog } from "@/components/trip/import-dialog";
 import { Wordmark } from "@/components/trip/wordmark";
+import { WorldTravelMap, type WorldTravelPlace } from "@/components/map/world-travel-map";
 
 type DialogTarget =
   | { kind: "rename"; trip: Trip }
@@ -301,6 +302,24 @@ export default function MyTripsPage() {
   const past = (trips ?? []).filter(
     (trip) => trip.endDate && trip.endDate < today
   );
+  const travelPlaces: WorldTravelPlace[] = (trips ?? []).flatMap((trip) =>
+    trip.days.flatMap((day) =>
+      day.activities.flatMap((activity) =>
+        activity.place
+          ? [{
+              id: activity.place.id,
+              name: activity.place.name,
+              coords: { lng: activity.place.longitude, lat: activity.place.latitude },
+              status: trip.status === "completed" ? "visited" : "planned",
+              country: activity.place.country,
+              detail: activity.place.formattedAddress,
+              tripId: trip.id,
+              tripName: trip.name,
+            }]
+          : []
+      )
+    )
+  );
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-5 py-8">
@@ -389,6 +408,13 @@ export default function MyTripsPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-3">
+          {travelPlaces.length > 0 && (
+            <WorldTravelMap
+              places={travelPlaces}
+              className="h-[300px] sm:h-[400px]"
+              emptyMessage="Map is unavailable. Configure the map provider to enable maps."
+            />
+          )}
           {upcoming.length > 0 && (
             <>
               <h2 className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">

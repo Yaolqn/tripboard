@@ -33,6 +33,7 @@ import { MobileBottomBar } from "@/components/trip/mobile-bottom-bar";
 import { ShareDialog } from "@/components/trip/share-dialog";
 import { ExportDialog } from "@/components/trip/export-dialog";
 import { ConfirmDialog } from "@/components/trip/confirm-dialog";
+import { DayRouteMap } from "@/components/map/day-route-map";
 
 export function TripEditor({ id }: { id: string }) {
   const router = useRouter();
@@ -206,14 +207,29 @@ export function TripEditor({ id }: { id: string }) {
               <Separator className="mt-6" />
 
               {activeDay.activities.length > 0 ? (
-                <Timeline
-                  day={activeDay}
-                  currency={trip.currency}
-                  onEdit={(a) => setEditor({ open: true, activity: a })}
-                  onDuplicate={handleDuplicate}
-                  onDelete={(a) => setDeleteTarget({ activity: a, dayNumber })}
-                  onReorder={handleReorder}
-                />
+                <>
+                  <Timeline
+                    day={activeDay}
+                    currency={trip.currency}
+                    onEdit={(a) => setEditor({ open: true, activity: a })}
+                    onDuplicate={handleDuplicate}
+                    onDelete={(a) => setDeleteTarget({ activity: a, dayNumber })}
+                    onReorder={handleReorder}
+                  />
+                  <div className="mt-8">
+                    <DayRouteMap
+                      activities={activeDay.activities.map((activity) => ({
+                        ...activity,
+                        coords: activity.place
+                          ? { lng: activity.place.longitude, lat: activity.place.latitude }
+                          : undefined,
+                      }))}
+                      height="clamp(280px, 40vw, 420px)"
+                      emptyMessage="No locations added yet."
+                      noPlacesMessage="Add a location to your activities to see your route on the map."
+                    />
+                  </div>
+                </>
               ) : (
                 <EmptyDay onAdd={() => setEditor({ open: true, activity: null })} />
               )}

@@ -9,6 +9,7 @@ import { formatDateRange, formatMoney } from "@/lib/format";
 import { computeBudget } from "@/lib/trip-utils";
 import { ReadOnlyDay } from "@/components/trip/readonly-day";
 import { TripEditor } from "@/components/trip/trip-editor";
+import { TripPlacesMap, type TripPlace } from "@/components/map/trip-places-map";
 import { Wordmark } from "@/components/trip/wordmark";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,21 @@ function PublicTripView({ trip }: { trip: Trip }) {
   const cover = coverColors(trip.cover);
   const budget = computeBudget(trip);
   const activityCount = trip.days.reduce((n, d) => n + d.activities.length, 0);
+  const mapPlaces: TripPlace[] = trip.days.flatMap((day) =>
+    day.activities.flatMap((activity) =>
+      activity.place
+        ? [{
+            id: activity.place.id,
+            name: activity.place.name,
+            coords: { lng: activity.place.longitude, lat: activity.place.latitude },
+            detail: activity.place.formattedAddress,
+            country: activity.place.country,
+            tripId: trip.id,
+            tripName: trip.name,
+          }]
+        : []
+    )
+  );
 
   return (
     <div className={cn("flex min-h-dvh flex-col", theme.shell)}>
@@ -137,6 +153,15 @@ function PublicTripView({ trip }: { trip: Trip }) {
         </div>
 
         <div className="mt-12 sm:mt-16">
+          {mapPlaces.length > 0 && (
+            <div className="mb-12">
+              <TripPlacesMap
+                places={mapPlaces}
+                height="clamp(280px, 42vw, 420px)"
+                emptyMessage="Map is unavailable. Configure the map provider to enable maps."
+              />
+            </div>
+          )}
           {trip.days.map((day, i) => (
             <div key={day.id} className={i > 0 ? "mt-4" : ""}>
               <ReadOnlyDay day={day} dayNumber={i + 1} currency={trip.currency} />

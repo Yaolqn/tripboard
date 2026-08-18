@@ -71,6 +71,26 @@ create table if not exists public.trip_days (
 );
 create index if not exists trip_days_trip_idx on public.trip_days (trip_id);
 
+-- ---------- places ----------
+-- Places are shared by activities through the provider identity. The activity
+-- relationship remains nullable so legacy/free-form activities keep working.
+create table if not exists public.places (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null default 'amap' check (provider = 'amap'),
+  provider_place_id text not null,
+  name text not null,
+  formatted_address text not null default '',
+  city text,
+  country text,
+  country_code text,
+  latitude double precision not null check (latitude between -90 and 90),
+  longitude double precision not null check (longitude between -180 and 180),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (provider, provider_place_id)
+);
+create index if not exists places_provider_idx on public.places (provider, provider_place_id);
+
 -- ---------- activities ----------
 create table if not exists public.activities (
   id uuid primary key default gen_random_uuid(),
@@ -86,6 +106,9 @@ create table if not exists public.activities (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table public.activities
+  add column if not exists place_id uuid references public.places(id) on delete set null;
+create index if not exists activities_place_idx on public.activities (place_id);
 create index if not exists activities_day_idx on public.activities (day_id);
 
 -- ---------- trip_members ----------
@@ -118,6 +141,7 @@ alter table public.profiles enable row level security;
 alter table public.trips enable row level security;
 alter table public.trip_days enable row level security;
 alter table public.activities enable row level security;
+alter table public.places enable row level security;
 alter table public.trip_members enable row level security;
 alter table public.trip_invites enable row level security;
 
@@ -243,6 +267,56 @@ create policy "activities: write with day" on public.activities
         where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
       )))
   ));
+
+-- ---------- places ----------
+drop policy if exists "places: read with trip" on public.places;
+create policy "places: read with trip" on public.places
+  for select using (
+    exists (
+      select 1 from public.activities a
+      join public.trip_days d on d.id = a.day_id
+      join public.trips t on t.id = d.trip_id
+      where a.place_id = places.id
+        and (t.user_id = auth.uid() or t.visibility = 'public' or public.is_trip_member(t.id))
+    )
+  );
+drop policy if exists "places: write with trip" on public.places;
+create policy "places: insert authenticated" on public.places
+  for insert with check (
+    auth.uid() is not null
+    and provider = 'amap'
+    and latitude between -90 and 90
+    and longitude between -180 and 180
+  );
+drop policy if exists "places: update with trip" on public.places;
+create policy "places: update with trip" on public.places
+  for update using (
+    exists (
+      select 1 from public.activities a
+      join public.trip_days d on d.id = a.day_id
+      join public.trips t on t.id = d.trip_id
+      where a.place_id = places.id
+        and (t.user_id = auth.uid() or (public.is_trip_member(t.id) and exists (
+          select 1 from public.trip_members m
+          where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
+        )))
+    )
+  )
+  with check (provider = 'amap' and latitude between -90 and 90 and longitude between -180 and 180);
+drop policy if exists "places: delete with trip" on public.places;
+create policy "places: delete with trip" on public.places
+  for delete using (
+    exists (
+      select 1 from public.activities a
+      join public.trip_days d on d.id = a.day_id
+      join public.trips t on t.id = d.trip_id
+      where a.place_id = places.id
+        and (t.user_id = auth.uid() or (public.is_trip_member(t.id) and exists (
+          select 1 from public.trip_members m
+          where m.trip_id = t.id and m.user_id = auth.uid() and m.role in ('owner', 'editor')
+        )))
+    )
+  );
 
 -- ---------- trip_members ----------
 drop policy if exists "trip_members: read own/owner" on public.trip_members;

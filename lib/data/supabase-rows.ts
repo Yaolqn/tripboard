@@ -1,10 +1,25 @@
-import type { Activity, Day, Trip } from "@/types/trip";
+import type { Activity, Day, Place, Trip } from "@/types/trip";
 import { sanitizeTrip } from "@/lib/trip-utils";
 
 /**
  * Mappers between the UI Trip shape and the Supabase relational rows
  * (trips / trip_days / activities). Pure functions — no supabase calls.
  */
+
+export interface PlaceRow {
+  id: string;
+  provider: string;
+  provider_place_id: string;
+  name: string;
+  formatted_address: string;
+  city: string | null;
+  country: string | null;
+  country_code: string | null;
+  latitude: number;
+  longitude: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface ActivityRow {
   id: string;
@@ -13,6 +28,8 @@ export interface ActivityRow {
   time: string;
   type: string;
   location: string | null;
+  place_id: string | null;
+  place?: PlaceRow | null;
   cost: number | null;
   notes: string | null;
   url: string | null;
@@ -53,6 +70,24 @@ export interface TripRow {
 
 const toISO = (d: string | null): string => d ?? "";
 
+function rowToPlace(row: PlaceRow): Place | undefined {
+  if (row.provider !== "amap") return undefined;
+  return {
+    id: row.id,
+    provider: "amap",
+    providerPlaceId: row.provider_place_id,
+    name: row.name,
+    formattedAddress: row.formatted_address,
+    city: row.city ?? undefined,
+    country: row.country ?? undefined,
+    countryCode: row.country_code ?? undefined,
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : undefined,
+  };
+}
+
 export function rowsToTrip(row: TripRow): Trip | null {
   const days: Day[] = (row.trip_days ?? [])
     .slice()
@@ -67,6 +102,8 @@ export function rowsToTrip(row: TripRow): Trip | null {
           title: a.title,
           time: a.time ?? "",
           location: a.location ?? undefined,
+          placeId: a.place_id ?? undefined,
+          place: a.place ? rowToPlace(a.place) : undefined,
           cost: a.cost != null && a.cost > 0 ? Number(a.cost) : undefined,
           notes: a.notes ?? undefined,
           url: a.url ?? undefined,
@@ -116,6 +153,7 @@ export interface TripWriteSet {
       time: string;
       type: string;
       location: string | null;
+      place_id: string | null;
       cost: number | null;
       notes: string | null;
       url: string | null;
@@ -156,6 +194,7 @@ export function tripToWriteSet(trip: Trip): TripWriteSet {
         time: a.time ?? "",
         type: a.type,
         location: a.location ?? null,
+        place_id: a.placeId ?? null,
         cost: typeof a.cost === "number" && a.cost > 0 ? a.cost : null,
         notes: a.notes ?? null,
         url: a.url ?? null,

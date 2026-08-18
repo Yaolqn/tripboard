@@ -13,7 +13,7 @@ import {
  * through lib/data instead of calling these directly.
  */
 
-const TRIP_SELECT = "*, trip_days(*, activities(*))";
+const TRIP_SELECT = "*, trip_days(*, activities(*, place:places(*)))";
 
 export interface CloudCreateInput {
   name: string;
@@ -188,10 +188,62 @@ export async function cloudSaveTrip(
   supabase: SupabaseClient,
   trip: Trip
 ): Promise<void> {
-  const set = tripToWriteSet(trip);
-
-  // user_id is required on insert (import/duplicate create new rows);
-  // harmless on update of an existing row.
+  const placeInputs = trip.days.flatMap((day) =>
+    day.activities.flatMap((activity) => {
+      const place = activity.place;
+      if (!place) return [];
+      return [{
+        key: `${place.provider}:${place.providerPlaceId}`,
+        provider: place.provider,
+        provider_place_id: place.providerPlaceId,
+        name: place.name,
+        formatted_address: place.formattedAddress,
+        city: place.city ?? null,
+        country: place.country ?? null,
+        country_code: place.countryCode ?? null,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      }];
+    })
+  );
+  const uniquePlaceInputs = Array.from(new Map(placeInputs.map((row) => [row.key, row])).values());
+  let resolvedTrip = trip;
+  if (uniquePlaceInputs.length > 0) {
+    const { error: placeErr } = await supabase.from("places").upsert(
+      uniquePlaceInputs.map((row) => ({
+        provider: row.provider,
+        provider_place_id: row.provider_place_id,
+        name: row.name,
+        formatted_address: row.formatted_address,
+        city: row.city,
+        country: row.country,
+        country_code: row.country_code,
+        latitude: row.latitude,
+        longitude: row.longitude,
+      })),
+      { onConflict: "provider,provider_place_id" }
+    );
+    if (placeErr) throw placeErr;
+    const { data: savedPlaces, error: placeReadErr } = await supabase
+      .from("places")
+      .select("*")
+      .in("provider_place_id", uniquePlaceInputs.map((row) => row.provider_place_id));
+    if (placeReadErr) throw placeReadErr;
+    const ids = new Map((savedPlaces ?? []).map((row) => [`${row.provider}:${row.provider_place_id}`, row.id]));
+    resolvedTrip = {
+      ...trip,
+      days: trip.days.map((day) => ({
+        ...day,
+        activities: day.activities.map((activity) => ({
+          ...activity,
+          placeId: activity.place
+            ? ids.get(`${activity.place.provider}:${activity.place.providerPlaceId}`)
+            : undefined,
+        })),
+      })),
+    };
+  }
+  const set = tripToWriteSet(resolvedTrip);
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Activity, ActivityType } from "@/types/trip";
+import type { Activity, ActivityType, Place } from "@/types/trip";
+import { PlacePicker } from "@/components/trip/place-picker";
 import { ACTIVITY_TYPES, currencyInfo } from "@/types/trip";
-import { TYPE_META } from "@/lib/trip-utils";
+import { TYPE_META, newId } from "@/lib/trip-utils";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ export interface ActivityDraft {
   time: string;
   type: ActivityType;
   location: string;
+  place?: Place;
+  placeId?: string;
   cost?: number;
   notes: string;
   url: string;
@@ -50,6 +53,7 @@ export function ActivityEditor({
   const [time, setTime] = useState("");
   const [type, setType] = useState<ActivityType>("other");
   const [location, setLocation] = useState("");
+  const [place, setPlace] = useState<Place | undefined>();
   const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [url, setUrl] = useState("");
@@ -62,6 +66,7 @@ export function ActivityEditor({
     setTime(activity?.time ?? "");
     setType(activity?.type ?? "other");
     setLocation(activity?.location ?? "");
+    setPlace(activity?.place);
     setCost(activity?.cost != null ? String(activity.cost) : "");
     setNotes(activity?.notes ?? "");
     setUrl(activity?.url ?? "");
@@ -78,7 +83,9 @@ export function ActivityEditor({
       title: title.trim(),
       time,
       type,
-      location: location.trim(),
+      location: place?.name ?? location.trim(),
+      place,
+      placeId: place?.id,
       cost: parsedCost !== undefined && isFinite(parsedCost) && parsedCost > 0
         ? parsedCost
         : undefined,
@@ -188,11 +195,29 @@ export function ActivityEditor({
 
             <div className="space-y-1.5">
               <Label htmlFor="tb-location">{t("location")}</Label>
-              <Input
-                id="tb-location"
+              <PlacePicker
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder={t("phLocation")}
+                onChange={(next) => {
+                  setLocation(next);
+                  if (!next) setPlace(undefined);
+                }}
+                onSelect={(result) => {
+                  const [longitude, latitude] = result.location.split(",").map(Number);
+                  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                    setPlace(undefined);
+                    return;
+                  }
+                  setPlace({
+                    id: newId(),
+                    provider: "amap",
+                    providerPlaceId: result.id,
+                    name: result.name,
+                    formattedAddress: result.address,
+                    city: result.city,
+                    latitude,
+                    longitude,
+                  });
+                }}
               />
             </div>
 

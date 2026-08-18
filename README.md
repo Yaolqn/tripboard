@@ -85,6 +85,10 @@ npm run start
 | `NEXT_PUBLIC_SITE_URL`     | Your production URL, e.g. `https://tripboard.vercel.app`               |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL                                                   |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon public key (safe for the browser; never use the service-role key) |
+| `NEXT_PUBLIC_AMAP_KEY` | AMap JS API 2.0 browser key; restrict it with the production/local domain whitelist |
+| `NEXT_PUBLIC_AMAP_SECURITY_CODE` | Optional AMap JS security code; safe only when paired with the JS key |
+| `AMAP_WEB_SERVICE_KEY` | AMap Web Service key used only by the server-side search route |
+| `AMAP_WEB_SERVICE_SECRET` | Optional server-only Web Service signing secret; never expose it to the browser |
 
 Never commit `.env.local` or any secret.
 

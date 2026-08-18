@@ -7,7 +7,7 @@ import { rowsToTrip, type TripRow } from "@/lib/data/supabase-rows";
  * Returns null when Supabase isn't configured so pages degrade gracefully.
  */
 
-const TRIP_SELECT = "*, trip_days(*, activities(*))";
+const TRIP_SELECT = "*, trip_days(*, activities(*, place:places(*)))";
 
 /** Public trip by slug (visibility = public or unlisted). */
 export async function serverGetPublicTripBySlug(
